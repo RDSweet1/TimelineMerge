@@ -41,10 +41,10 @@ export function TranscriptImporter() {
       return;
     }
 
-    // Validate file size (< 10 MB)
-    const maxSizeBytes = 10 * 1024 * 1024; // 10 MB
+    // Validate file size (< 100 MB)
+    const maxSizeBytes = 100 * 1024 * 1024; // 100 MB
     if (selectedFile.size > maxSizeBytes) {
-      toast.error('File is too large. Maximum size is 10 MB.');
+      toast.error('File is too large. Maximum size is 100 MB.');
       e.target.value = ''; // Clear the input
       return;
     }
@@ -145,7 +145,7 @@ export function TranscriptImporter() {
             <p>Requirements:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>File format: .txt or .json (Otter.ai export)</li>
-              <li>Maximum file size: 10 MB</li>
+              <li>Maximum file size: 100 MB</li>
               <li>Must select an inspection before importing</li>
             </ul>
           </div>
