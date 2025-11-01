@@ -3,7 +3,7 @@
 /**
  * TranscriptImporter Component
  *
- * Main component for importing transcript files in .txt, .json, and .docx formats.
+ * Main component for importing transcript files in .txt, .json, .docx, and .pdf formats.
  * Handles file upload, validation, and import workflow.
  */
 
@@ -31,13 +31,13 @@ export function TranscriptImporter() {
     }
 
     // Validate file type
-    const validExtensions = ['.txt', '.json', '.docx'];
+    const validExtensions = ['.txt', '.json', '.docx', '.pdf'];
     const fileExtension = selectedFile.name
       .substring(selectedFile.name.lastIndexOf('.'))
       .toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      toast.error('Invalid file type. Please upload a .txt, .json, or .docx file.');
+      toast.error('Invalid file type. Please upload a .txt, .json, .docx, or .pdf file.');
       e.target.value = ''; // Clear the input
       return;
     }
@@ -124,12 +124,12 @@ export function TranscriptImporter() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="transcript-file">
-              Select transcript file (.txt, .json, or .docx)
+              Select transcript file (.txt, .json, .docx, or .pdf)
             </Label>
             <Input
               id="transcript-file"
               type="file"
-              accept=".txt,.json,.docx"
+              accept=".txt,.json,.docx,.pdf"
               onChange={handleFileChange}
               disabled={isImporting}
             />
@@ -155,7 +155,7 @@ export function TranscriptImporter() {
           <div className="text-xs text-muted-foreground space-y-1">
             <p>Requirements:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>File format: .txt, .json, or .docx</li>
+              <li>File format: .txt, .json, .docx, or .pdf</li>
               <li>Maximum file size: 100 MB</li>
               <li>Warning displayed for files larger than 10 MB</li>
               <li>Must select an inspection before importing</li>

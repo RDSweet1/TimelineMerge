@@ -1,7 +1,7 @@
 /**
  * Otter.ai Transcript Parser
  *
- * Parses transcript files in .txt, .json, and .docx formats.
+ * Parses transcript files in .txt, .json, .docx, and .pdf formats.
  * Extracts timestamps, speaker labels, and text content.
  * Normalizes all timestamps to HH:MM:SS format for uniform storage.
  */
@@ -19,8 +19,8 @@ import {
  * Read and parse transcript file (client-side wrapper)
  *
  * This wrapper function handles all file format detection and reading client-side.
- * It extracts plain text from .docx files using mammoth.js, then calls the
- * existing parseOtterTranscript() function to parse the content.
+ * It extracts plain text from .docx files using mammoth.js and .pdf files using
+ * pdfjs-dist, then calls the existing parseOtterTranscript() function to parse the content.
  *
  * @param file - File object from file input
  * @returns ParsedTranscript with segments and metadata
@@ -37,7 +37,52 @@ export async function readAndParseTranscriptFile(
       .substring(file.name.lastIndexOf('.'))
       .toLowerCase();
 
-    if (fileExtension === '.docx') {
+    if (fileExtension === '.pdf') {
+      // Extract text from PDF document using pdfjs-dist
+      // Dynamic import to avoid SSR issues
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+
+        // Configure worker path (only in browser environment)
+        if (typeof window !== 'undefined') {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+
+        let fullText = '';
+        // Extract text from all pages
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item) => {
+              // PDF text items have a 'str' property containing the text
+              if (typeof item === 'object' && item !== null && 'str' in item) {
+                return (item as { str: string }).str;
+              }
+              return '';
+            })
+            .join(' ');
+          fullText += pageText + '\n';
+
+          // Clean up page resources
+          page.cleanup();
+        }
+
+        fileContent = fullText;
+
+        // Clean up PDF document
+        await pdf.cleanup();
+      } catch (pdfError) {
+        console.error('[Parser] PDF extraction failed:', pdfError);
+        throw new Error(
+          'Failed to read PDF document. The file may be corrupted, password-protected, or use an unsupported PDF version. Note: Scanned PDFs (images) are not supported.'
+        );
+      }
+    } else if (fileExtension === '.docx') {
       // Extract raw text from Word document using mammoth
       try {
         const arrayBuffer = await file.arrayBuffer();
@@ -54,7 +99,7 @@ export async function readAndParseTranscriptFile(
       fileContent = await file.text();
     } else {
       throw new Error(
-        'Unsupported file format. Please upload a .txt, .json, or .docx file.'
+        'Unsupported file format. Please upload a .txt, .json, .docx, or .pdf file.'
       );
     }
 
@@ -73,7 +118,7 @@ export async function readAndParseTranscriptFile(
  * Parse Otter.ai transcript file (auto-detects format from fileName)
  *
  * @param fileContent - File content as string
- * @param fileName - File name (used to detect format: .txt, .json, or .docx)
+ * @param fileName - File name (used to detect format: .txt, .json, .docx, or .pdf)
  * @returns ParsedTranscript with segments and metadata
  * @throws Error if file format is unsupported or parsing fails
  */
@@ -85,22 +130,24 @@ export function parseOtterTranscript(
   const extension = fileName
     .substring(fileName.lastIndexOf('.'))
     .toLowerCase();
-  
+
   let format: TranscriptFormat;
   if (extension === '.json') {
     format = 'json';
   } else if (extension === '.docx') {
     format = 'docx';
+  } else if (extension === '.pdf') {
+    format = 'pdf';
   } else {
     format = 'txt';
   }
 
-  // Parse based on format (docx has been converted to plain text by wrapper)
+  // Parse based on format (docx and pdf have been converted to plain text by wrapper)
   let segments: TranscriptSegment[];
   if (format === 'json') {
     segments = parseOtterJsonFormat(fileContent);
   } else {
-    // Both .txt and .docx use same text format parsing
+    // .txt, .docx, and .pdf all use same text format parsing
     segments = parseOtterTxtFormat(fileContent);
   }
 
