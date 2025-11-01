@@ -1,0 +1,22 @@
+{
+  "segments": [
+    {
+      "speaker": "Inspector Davis",
+      "start_time": 5.2,
+      "end_time": 12.8,
+      "text": "Beginning inspection of the exterior walls. Looking for any structural issues."
+    },
+    {
+      "speaker": "Inspector Martinez",
+      "start_time": 18.5,
+      "end_time": 32.1,
+      "text": "The windows appear to be in good condition with proper sealing."
+    },
+    {
+      "speaker": "Inspector Davis",
+      "start_time": 45.0,
+      "end_time": 58.3,
+      "text": "Moving to the basement area. Notice some minor moisture along the foundation."
+    }
+  ]
+}

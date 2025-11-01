@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>Otter.ai Transcript Import</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.3.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>inspector</asA>
+    <iWant>to import my Otter.ai transcript file</iWant>
+    <soThat>spoken observations are captured as items in my inspection</soThat>
+    <tasks>
+      <task id="0" status="pending">
+        <name>Verify createInspection Server Action</name>
+        <criteria>AC: #1</criteria>
+        <subtasks>
+          <subtask>Check if createInspection() exists in src/actions/projects.ts</subtask>
+          <subtask>If missing, create createInspection(projectId: string, name: string): Promise&lt;ActionResult&lt;Inspection&gt;&gt;</subtask>
+          <subtask>Ensure it follows ActionResult&lt;T&gt; pattern</subtask>
+          <subtask>Add structured logging with [Projects] prefix</subtask>
+          <subtask>Add validation: projectId and name required</subtask>
+        </subtasks>
+      </task>
+      <task id="1" status="pending">
+        <name>Create Transcript Parser Module</name>
+        <criteria>AC: #5, #9</criteria>
+        <subtasks>
+          <subtask>Create src/lib/import/types.ts with TypeScript types for parsed transcript data</subtask>
+          <subtask>Define TranscriptSegment interface (timestamp: string (HH:MM:SS), speaker: string, text: string)</subtask>
+          <subtask>Define ParsedTranscript interface (segments array, metadata)</subtask>
+          <subtask>Define OtterTranscriptFormat type union ('txt' | 'json')</subtask>
+          <subtask>Create src/lib/import/transcript-parser.ts with parser functions</subtask>
+          <subtask>Implement parseOtterTxtFormat(content: string): ParsedTranscript</subtask>
+          <subtask>Implement parseOtterJsonFormat(content: string): ParsedTranscript</subtask>
+          <subtask>Implement parseOtterTranscript(fileContent: string, fileName: string): ParsedTranscript (auto-detects format)</subtask>
+          <subtask>Add error handling for malformed files with descriptive error messages</subtask>
+          <subtask>Extract timestamps and normalize to HH:MM:SS format (uniform storage format)</subtask>
+          <subtask>Handle input formats: HH:MM:SS, MM:SS, or numeric seconds</subtask>
+          <subtask>Extract speaker labels (e.g., "Speaker 1:", "David:")</subtask>
+          <subtask>Extract text content for each segment</subtask>
+          <subtask>Handle edge cases: missing timestamps, unlabeled speakers, empty segments</subtask>
+        </subtasks>
+      </task>
+      <task id="2" status="pending">
+        <name>Create Import Server Action</name>
+        <criteria>AC: #6, #7, #8, #10</criteria>
+        <subtasks>
+          <subtask>Create src/actions/import.ts with 'use server' directive</subtask>
+          <subtask>Implement importTranscript(inspectionId: string, fileContent: string, fileName: string): Promise&lt;ActionResult&lt;{ count: number }&gt;&gt;</subtask>
+          <subtask>NOTE: File reading happens on client side using file.text(), content passed as string parameter</subtask>
+          <subtask>Validate fileContent is not empty</subtask>
+          <subtask>Call parseOtterTranscript(fileContent, fileName) to parse file</subtask>
+          <subtask>Sort transcript segments by timestamp (chronological order)</subtask>
+          <subtask>Assign sequential index_position values starting from 0</subtask>
+          <subtask>Batch insert segments using Supabase insert (single query, not loop)</subtask>
+          <subtask>Return success with count of imported items</subtask>
+          <subtask>Handle duplicate index_position errors (UNIQUE constraint violation - code 23505)</subtask>
+          <subtask>Detect duplicate import: "This inspection already has transcript items. Delete existing items before re-importing."</subtask>
+          <subtask>Add structured logging: console.log('[Import] Processing transcript:', {...})</subtask>
+          <subtask>Return ActionResult with error for parsing failures or DB errors</subtask>
+        </subtasks>
+      </task>
+      <task id="3" status="pending">
+        <name>Create Inspection Selector Component</name>
+        <criteria>AC: #1</criteria>
+        <subtasks>
+          <subtask>Create src/components/import/InspectionSelector.tsx (PascalCase file name)</subtask>
+          <subtask>CRITICAL FIX: Add projectId as required prop OR add project selection before inspection selection</subtask>
+          <subtask>Display dropdown/combobox of existing inspections using listInspectionsByProject(projectId)</subtask>
+          <subtask>Add "Create New Inspection" option</subtask>
+          <subtask>Show inline form to create new inspection when selected</subtask>
+          <subtask>Use createInspection(projectId, name) Server Action for new inspection creation</subtask>
+          <subtask>Display loading state during inspection creation</subtask>
+          <subtask>Return selected/created inspection ID to parent component</subtask>
+          <subtask>Add validation: inspection name required</subtask>
+          <subtask>Use ShadCN Select or Combobox component</subtask>
+        </subtasks>
+      </task>
+      <task id="4" status="pending">
+        <name>Create Transcript Importer Component</name>
+        <criteria>AC: #2, #3, #4, #8</criteria>
+        <subtasks>
+          <subtask>Create src/components/import/TranscriptImporter.tsx (PascalCase file name)</subtask>
+          <subtask>Add file upload input accepting .txt and .json files only</subtask>
+          <subtask>CRITICAL FIX: Add client-side file type validation: Check file extension is .txt or .json, show error for other types</subtask>
+          <subtask>CRITICAL FIX: Add client-side file size validation: Check file size &lt; 10 MB, show error for larger files</subtask>
+          <subtask>Display file name and size after selection</subtask>
+          <subtask>Integrate InspectionSelector component (with projectId prop or project selection)</subtask>
+          <subtask>Add "Import" button (disabled until file and inspection selected)</subtask>
+          <subtask>CRITICAL FIX: Read file on client using await file.text(), then call importTranscript(inspectionId, fileContent, fileName)</subtask>
+          <subtask>Display loading spinner during import</subtask>
+          <subtask>Show success message with count of imported items (use Sonner toast)</subtask>
+          <subtask>Show error message for failures (validation, parsing, or DB errors)</subtask>
+          <subtask>Clear file input after successful import</subtask>
+          <subtask>Use ShadCN Button, Input (file type), and Card components</subtask>
+        </subtasks>
+      </task>
+      <task id="5" status="pending">
+        <name>Create Import Page Route</name>
+        <criteria>AC: #1, #2, #8</criteria>
+        <subtasks>
+          <subtask>Create src/app/import/page.tsx</subtask>
+          <subtask>Render TranscriptImporter component</subtask>
+          <subtask>Add page title: "Import Transcript"</subtask>
+          <subtask>Add breadcrumb or back navigation</subtask>
+          <subtask>Ensure page is client component (use 'use client' directive if using hooks)</subtask>
+          <subtask>Add simple layout with centered card</subtask>
+        </subtasks>
+      </task>
+      <task id="6" status="pending">
+        <name>Test Import Workflow</name>
+        <criteria>AC: #1-10</criteria>
+        <subtasks>
+          <subtask>Test parsing .txt format: verify timestamps normalized to HH:MM:SS, speakers, text extracted</subtask>
+          <subtask>Test parsing .json format: verify all fields extracted correctly, timestamps normalized</subtask>
+          <subtask>Test file type validation: attempt to upload .pdf, .docx, verify error message</subtask>
+          <subtask>Test file size validation: attempt to upload 11 MB file, verify error message</subtask>
+          <subtask>Test file upload: select file, verify UI updates</subtask>
+          <subtask>Test inspection selection: select existing inspection, verify ID captured</subtask>
+          <subtask>Test inspection creation: create new inspection, verify created in DB</subtask>
+          <subtask>Test import: upload transcript, verify items created in transcript_items table</subtask>
+          <subtask>Test chronological ordering: verify index_position assigned by timestamp</subtask>
+          <subtask>Test duplicate import: attempt to import same file twice, verify error: "inspection already has transcript items"</subtask>
+          <subtask>Test malformed file: upload invalid file, verify error message displayed</subtask>
+          <subtask>Test empty file: upload empty file, verify error message displayed</subtask>
+          <subtask>Test edge cases: missing timestamps, no speaker labels</subtask>
+          <subtask>Verify success/error feedback displayed in UI (toast notifications)</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">User selects existing inspection or creates new inspection before import (with project context)</criterion>
+    <criterion id="2">File upload interface accepts .txt or .json transcript files from Otter.ai</criterion>
+    <criterion id="3">File type validation enforced (.txt/.json only) with clear error messages</criterion>
+    <criterion id="4">File size validation enforced (&lt; 10 MB) with clear error messages</criterion>
+    <criterion id="5">Parser extracts timestamps (stored uniformly as HH:MM:SS), speaker labels, and text content from transcript</criterion>
+    <criterion id="6">Transcript segments stored as individual items in database linked to selected inspection</criterion>
+    <criterion id="7">Items receive index positions based on chronological timestamp order</criterion>
+    <criterion id="8">Import success/failure feedback displayed to user</criterion>
+    <criterion id="9">Handle parsing errors gracefully with clear error messages</criterion>
+    <criterion id="10">Duplicate imports fail with clear error message (inspection already has transcript items)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/story-1.3.md</path>
+        <title>Story 1.3: Otter.ai Transcript Import</title>
+        <section>Architecture Patterns - Import Workflow Pattern</section>
+        <snippet>The import process follows a multi-step pattern: 1) User Action (UI Component) - User selects/creates inspection, uploads file, validates type and size 2) Server Action - Receives fileContent string, calls parser 3) Parser - Detects format, parses timestamps/speakers/text, normalizes to HH:MM:SS 4) Database Insert - Sorts segments, assigns index_position, batch inserts 5) Feedback - Displays success/error message</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.3.md</path>
+        <title>Story 1.3: Otter.ai Transcript Import</title>
+        <section>Otter.ai Transcript Formats</section>
+        <snippet>Otter.ai exports text transcripts in format: "Speaker 1  0:03\nThis is the first segment..." and JSON with: {"segments": [{"speaker": "...", "start_time": 3.5, "text": "..."}]}. Timestamp normalization converts MM:SS, HH:MM:SS, or numeric seconds to uniform HH:MM:SS format (e.g., 0:03 → 00:00:03, 3.5 seconds → 00:00:03)</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>TimelineMerge - Decision Architecture</title>
+        <section>Server Actions Pattern</section>
+        <snippet>All Server Actions MUST return structured result objects: type ActionResult&lt;T&gt; = { success: true; data: T } | { success: false; error: string }. Never throw to client. Add structured logging with module prefix (e.g., '[Import] Processing transcript:', {...}). Handle specific error codes like 23505 (UNIQUE constraint violation) with user-friendly messages.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>TimelineMerge - Decision Architecture</title>
+        <section>Database Schema - transcript_items Table</section>
+        <snippet>CREATE TABLE transcript_items (id UUID PRIMARY KEY, inspection_id UUID REFERENCES inspections, index_position INTEGER NOT NULL, timestamp TIMESTAMPTZ, speaker_label TEXT, text_content TEXT NOT NULL, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, UNIQUE(inspection_id, index_position)). UNIQUE constraint enforces exactly one item per position per inspection. Attempting duplicate insertion returns error code 23505.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>TimelineMerge Product Requirements Document</title>
+        <section>Functional Requirements - Data Import & Processing</section>
+        <snippet>FR001: System shall import Otter.ai transcript files and parse timestamps, speaker labels, and text content. FR003: System shall use timestamps to establish initial chronological ordering of transcript excerpts on the timeline.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/story-1.2.md</path>
+        <title>Story 1.2: Database Foundation</title>
+        <section>Database Schema Details</section>
+        <snippet>Story 1.2 established: transcript_items table with UNIQUE(inspection_id, index_position) constraint, TypeScript TranscriptItem interface in src/types/database.ts, Server Actions pattern with ActionResult&lt;T&gt; return type, createTranscriptItem() Server Action available in src/actions/projects.ts, Project and Inspection CRUD operations (createProject, listProjects, listInspectionsByProject)</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/types/database.ts</path>
+        <kind>type-definitions</kind>
+        <symbol>TranscriptItem, ActionResult</symbol>
+        <reason>Story 1.2 established these types. Story 1.3 uses TranscriptItem for creating items, ActionResult for Server Action returns. Need to verify definitions and create CreateTranscriptItemInput type if missing.</reason>
+      </artifact>
+      <artifact>
+        <path>src/actions/projects.ts</path>
+        <kind>server-action</kind>
+        <symbol>createTranscriptItem, createProject, listProjects, listInspectionsByProject</symbol>
+        <reason>Story 1.2 created these Server Actions. Story 1.3 uses them (especially createTranscriptItem for batch insert) and needs to verify/create createInspection if missing. Pattern established for 'use server', ActionResult&lt;T&gt;, error handling with structured logging.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/supabase/server.ts</path>
+        <kind>client-library</kind>
+        <symbol>createClient</symbol>
+        <reason>Story 1.2 created server-side Supabase client. Story 1.3's import Server Action uses createClient() to initialize DB connection for batch insert operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/supabase/client.ts</path>
+        <kind>client-library</kind>
+        <symbol>createClient</symbol>
+        <reason>Story 1.2 created client-side Supabase client. May be used in InspectionSelector component if loading inspections from client (though listInspectionsByProject is typically Server Action).</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/ui</path>
+        <kind>ui-components</kind>
+        <symbol>Button, Input, Card, CardContent, CardHeader, CardTitle, Select, Combobox</symbol>
+        <reason>Story 1.3 creates TranscriptImporter and InspectionSelector components using ShadCN UI components for file input, buttons, selection dropdown, and card layout.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="npm">
+        <package name="next">
+          <version>15.5+</version>
+          <reason>Next.js 15 with App Router for page routes (src/app/import/page.tsx), Server Actions, and build tooling</reason>
+        </package>
+        <package name="react">
+          <version>19+</version>
+          <reason>Core framework for components (TranscriptImporter, InspectionSelector, page), hooks (useState, useCallback)</reason>
+        </package>
+        <package name="typescript">
+          <version>5+</version>
+          <reason>Type definitions for all components, Server Actions, parser functions, and database types</reason>
+        </package>
+        <package name="@supabase/supabase-js">
+          <version>2.38+</version>
+          <reason>Supabase client for database operations (batch insert transcript_items), already installed in Story 1.2</reason>
+        </package>
+        <package name="@supabase/ssr">
+          <version>0.0+</version>
+          <reason>Server-side Supabase client for Next.js Server Actions, already installed in Story 1.2</reason>
+        </package>
+        <package name="tailwindcss">
+          <version>4.0+</version>
+          <reason>CSS framework for component styling, established in Story 1.1</reason>
+        </package>
+        <package name="shadcn-ui">
+          <version>0.0+</version>
+          <reason>UI component library (Button, Input, Card, Select/Combobox), established in Story 1.1</reason>
+        </package>
+        <package name="sonner">
+          <version>1.0+</version>
+          <reason>Toast notifications for success/error feedback, already installed in Story 1.1</reason>
+        </package>
+        <package name="clsx">
+          <version>2.0+</version>
+          <reason>Utility for conditional CSS classes in components, typically available with shadcn</reason>
+        </package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <title>Server Action Pattern (Established in Story 1.2)</title>
+      <description>All Server Actions MUST return ActionResult&lt;T&gt; type (never throw exceptions to client). Function signature: 'use server'; at top. Add structured logging with [ModuleName] prefix. Handle Supabase errors gracefully (especially code 23505 for UNIQUE constraint violations).</description>
+      <source>docs/architecture.md#Server-Actions-Pattern, docs/stories/story-1.2.md</source>
+    </constraint>
+    <constraint>
+      <title>File Reading on Client Side (CRITICAL)</title>
+      <description>CRITICAL: File reading MUST happen on client side using await file.text(). File content is passed as STRING parameter to Server Action. This avoids large body size issues and keeps file handling in browser. importTranscript() signature: (inspectionId: string, fileContent: string, fileName: string) → Promise&lt;ActionResult&lt;{ count: number }&gt;&gt;</description>
+      <source>docs/stories/story-1.3.md#Component-Design-Patterns</source>
+    </constraint>
+    <constraint>
+      <title>Timestamp Normalization (HH:MM:SS Format)</title>
+      <description>All timestamps MUST be normalized to uniform HH:MM:SS format for storage in database. Parser handles input formats: HH:MM:SS, MM:SS, or numeric seconds (e.g., "0:03" → "00:00:03", 3.5 → "00:00:03"). Examples: "1:23:45" → "01:23:45", "01:23" → "00:01:23".</description>
+      <source>docs/stories/story-1.3.md#Otter.ai-Transcript-Formats, #Timestamp-Normalization</source>
+    </constraint>
+    <constraint>
+      <title>Batch Insert (Single Query)</title>
+      <description>Use Supabase batch insert for ALL transcript items (single query, not loop). Multiple items per file should be inserted with one .insert(itemsToInsert) call. This improves performance for transcripts with 50-200+ segments.</description>
+      <source>docs/stories/story-1.3.md#Performance-Considerations, #Batch-Insert-Strategy</source>
+    </constraint>
+    <constraint>
+      <title>UNIQUE Constraint Violation Handling (Code 23505)</title>
+      <description>Supabase returns error code 23505 for UNIQUE constraint violations on (inspection_id, index_position). Server Action MUST detect this and return user-friendly error: "This inspection already has transcript items. Delete existing items before re-importing." MVP uses fail-fast strategy (no merge/replace options).</description>
+      <source>docs/stories/story-1.3.md#Database-Constraints</source>
+    </constraint>
+    <constraint>
+      <title>Inspection Selector Requires Project Context (CRITICAL)</title>
+      <description>CRITICAL: InspectionSelector component MUST receive projectId as required prop OR add project selection UI before inspection selection. Cannot select inspection without knowing which project it belongs to. listInspectionsByProject(projectId) requires projectId parameter.</description>
+      <source>docs/stories/story-1.3.md#Task-3-Create-Inspection-Selector-Component</source>
+    </constraint>
+    <constraint>
+      <title>File Validation (Client-Side)</title>
+      <description>Client-side validation MUST check: (1) File type: only .txt and .json extensions allowed, (2) File size: must be &lt; 10 MB (10 * 1024 * 1024 bytes). Show clear error messages for validation failures before attempting upload.</description>
+      <source>docs/stories/story-1.3.md#Acceptance-Criteria #3, #4</source>
+    </constraint>
+    <constraint>
+      <title>Component File Naming Convention (PascalCase)</title>
+      <description>Component files MUST use PascalCase: TranscriptImporter.tsx, InspectionSelector.tsx (NOT transcript-importer.tsx). Library/utility files use kebab-case: transcript-parser.ts, types.ts. Component exports use PascalCase: export function TranscriptImporter() {...}</description>
+      <source>docs/stories/story-1.3.md#Project-Structure-Notes, #Naming-Conventions</source>
+    </constraint>
+    <constraint>
+      <title>Parser as Pure Function (No Side Effects)</title>
+      <description>Parser functions (parseOtterTxtFormat, parseOtterJsonFormat, parseOtterTranscript) MUST be pure functions with no side effects, no database access, no external state. Return structured ParsedTranscript type. All data validation and DB operations happen in Server Action layer.</description>
+      <source>docs/stories/story-1.3.md#Architecture-Patterns</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>importTranscript Server Action</name>
+      <kind>server-action</kind>
+      <signature>async function importTranscript(inspectionId: string, fileContent: string, fileName: string): Promise&lt;ActionResult&lt;{ count: number }&gt;&gt;</signature>
+      <path>src/actions/import.ts</path>
+      <description>Main Server Action for importing transcript. Takes inspection ID, file content (as string from client file.text()), and file name for format detection. Returns count of imported items or error. Handles batch insert, timestamp sorting, index_position assignment, and UNIQUE constraint violations (code 23505).</description>
+    </interface>
+    <interface>
+      <name>parseOtterTranscript Parser Function</name>
+      <kind>function</kind>
+      <signature>function parseOtterTranscript(fileContent: string, fileName: string): ParsedTranscript</signature>
+      <path>src/lib/import/transcript-parser.ts</path>
+      <description>Main parser entry point. Auto-detects format from fileName (.txt vs .json). Returns ParsedTranscript with array of TranscriptSegment objects (timestamp: HH:MM:SS, speaker: string, text: string). Handles malformed files with descriptive errors.</description>
+    </interface>
+    <interface>
+      <name>parseOtterTxtFormat Parser Function</name>
+      <kind>function</kind>
+      <signature>function parseOtterTxtFormat(content: string): ParsedTranscript</signature>
+      <path>src/lib/import/transcript-parser.ts</path>
+      <description>Parses Otter.ai .txt format. Line-based parsing with pattern: "{speaker_name}  {timestamp}" followed by text lines until next speaker. Extracts speaker, timestamp, text. Normalizes timestamp to HH:MM:SS.</description>
+    </interface>
+    <interface>
+      <name>parseOtterJsonFormat Parser Function</name>
+      <kind>function</kind>
+      <signature>function parseOtterJsonFormat(content: string): ParsedTranscript</signature>
+      <path>src/lib/import/transcript-parser.ts</path>
+      <description>Parses Otter.ai .json format. JSON.parse() to deserialize. Extracts speaker, start_time, text from each segment in segments array. Converts numeric timestamps (seconds) to HH:MM:SS format.</description>
+    </interface>
+    <interface>
+      <name>TranscriptImporter Component</name>
+      <kind>react-component</kind>
+      <signature>interface TranscriptImporterProps { projectId: string; onImportSuccess?: (count: number) => void; } export function TranscriptImporter(props: TranscriptImporterProps): React.ReactNode</signature>
+      <path>src/components/import/TranscriptImporter.tsx</path>
+      <description>File upload and import UI component. Includes: file input (accepts .txt, .json), client-side type/size validation, InspectionSelector integration, import button, loading state, success/error toast feedback. Reads file on client with await file.text().</description>
+    </interface>
+    <interface>
+      <name>InspectionSelector Component</name>
+      <kind>react-component</kind>
+      <signature>interface InspectionSelectorProps { projectId: string; onInspectionSelected: (inspectionId: string) => void; } export function InspectionSelector(props: InspectionSelectorProps): React.ReactNode</signature>
+      <path>src/components/import/InspectionSelector.tsx</path>
+      <description>Inspection selection/creation component. Lists existing inspections via listInspectionsByProject(projectId). Allows "Create New Inspection" option with inline form. Calls createInspection(projectId, name) Server Action. Returns selected/created inspection ID to parent.</description>
+    </interface>
+    <interface>
+      <name>TranscriptSegment Type</name>
+      <kind>typescript-type</kind>
+      <signature>interface TranscriptSegment { timestamp: string; // HH:MM:SS format speaker: string; text: string; }</signature>
+      <path>src/lib/import/types.ts</path>
+      <description>Represents single parsed transcript segment. Timestamp normalized to uniform HH:MM:SS format. Speaker can be "Unknown Speaker" for missing labels.</description>
+    </interface>
+    <interface>
+      <name>ParsedTranscript Type</name>
+      <kind>typescript-type</kind>
+      <signature>interface ParsedTranscript { segments: TranscriptSegment[]; metadata?: { format: 'txt' | 'json'; segmentCount: number; }; }</signature>
+      <path>src/lib/import/types.ts</path>
+      <description>Result of parsing transcript file. Contains array of segments and optional metadata about parsing.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Per architecture.md and story requirements, manual testing is primary approach for Story 1.3. Test all file formats (.txt, .json), file validation (type and size), parsing accuracy, database constraints, and error scenarios. Verify UNIQUE constraint handling, timestamp normalization, and UI feedback. Future stories may add automated unit tests for parser. Use Supabase Table Editor to verify records created correctly.</standards>
+    <locations>docs/stories/story-1.3.md#Testing-Standards, test files will be created in src/__tests__ or alongside components as .test.ts/.test.tsx files (naming convention TBD by future story)</locations>
+    <ideas>
+      <idea mapsto="AC-1">Verify user can select existing inspection from dropdown and create new inspection with inline form</idea>
+      <idea mapsto="AC-2,AC-3,AC-4">Test file input accepts only .txt/.json, rejects .pdf/.docx with error message, validates file size &lt; 10 MB</idea>
+      <idea mapsto="AC-5">Test parser with sample .txt and .json files, verify timestamps normalized to HH:MM:SS, speakers extracted correctly, text content captured</idea>
+      <idea mapsto="AC-6,AC-7">Import transcript file and verify items created in transcript_items table with correct inspection_id and sequential index_position values</idea>
+      <idea mapsto="AC-8">Verify UI displays success toast with count of imported items on successful import, error toast on failure</idea>
+      <idea mapsto="AC-9">Test malformed JSON, empty files, missing timestamps/speakers, verify descriptive error messages displayed</idea>
+      <idea mapsto="AC-10">Test duplicate import by attempting to import into same inspection twice, verify UNIQUE constraint error caught and user-friendly message displayed</idea>
+    </ideas>
+  </tests>
+</story-context>
