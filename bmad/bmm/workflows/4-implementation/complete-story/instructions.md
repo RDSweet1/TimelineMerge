@@ -142,36 +142,59 @@ The SM orchestrator (the agent executing this workflow) reads all required docum
 
 ### **Step 1: Approve Previous Story (Conditional)**
 
-**Condition:** workflow-status has `IN_PROGRESS_STORY` populated
+**Condition:** sprint-status.yaml has story in `review` or `in-progress` status
 
-**Agent:** `dev`
-**Task:** Execute `story-done` workflow
+**Agent:** `sm` (Scrum Master orchestrator - not spawned, direct execution)
+**Task:** Mark story as done and update sprint status
 
 **Purpose:** Before starting the next story, mark the previous story (that you just tested) as Done and advance the story queue.
 
+**CRITICAL: Use bash commands for file updates to avoid Edit tool caching issues**
+
 **Process:**
-1. **Check for IN_PROGRESS story in workflow-status** (already loaded in SM agent memory in Step 0)
-2. **If IN_PROGRESS_STORY exists:**
-   - Read the story file at `{story_dir}/{in_progress_story_file}`
-   - Update story status from "Ready" OR "Implemented" → "Done"
-   - Add completion notes with date to Dev Agent Record section
-   - Invoke `workflow-status` update action `complete_story`:
-     - Move IN_PROGRESS → DONE
-     - Move TODO → IN_PROGRESS
-     - Move BACKLOG → TODO
-3. **If no IN_PROGRESS_STORY:**
+1. **Check sprint-status.yaml for story in 'review' or 'in-progress' status** (already loaded in SM agent memory in Step 0)
+2. **If story found in review/in-progress:**
+   - Use bash `sed` command to update story status to "done":
+     ```bash
+     sed -i 's/Status: review/Status: done/' "{story_file_path}"
+     sed -i 's/Status: in-progress/Status: done/' "{story_file_path}"
+     ```
+   - Use bash `sed` command to update sprint-status.yaml:
+     ```bash
+     sed -i 's/{story-id}: review/{story-id}: done/' "{sprint-status-path}"
+     sed -i 's/{story-id}: in-progress/{story-id}: done/' "{sprint-status-path}"
+     ```
+   - Use bash `cat` with heredoc to append completion notes:
+     ```bash
+     cat >> "{story_file_path}" << 'EOF'
+
+     ---
+
+     **Date:** {date}
+     **Agent:** Scrum Master (SM - Bob)
+     **Status:** Story Approved and Marked Done
+
+     **Approval Notes:** Story reviewed and approved. Implementation complete. Story marked as done and queue advanced.
+     EOF
+     ```
+3. **If no story in review/in-progress:**
    - Skip this step (first story in sequence)
+4. **Verify changes with bash:**
+   ```bash
+   head -n 5 "{story_file_path}"  # Verify status changed
+   grep "{story-id}" "{sprint-status-path}"  # Verify sprint status updated
+   ```
 
 **Expected Output:**
 - Previous story marked Done
-- Story queue advanced
-- Next story moved to IN_PROGRESS (becomes the story to create in Step 2)
+- Sprint status updated: `{story-id}: review` → `{story-id}: done`
+- Completion notes appended to story file
 
 **On Failure:** Abort workflow (cannot proceed without clean queue state)
 
-**Workflow Benefit:** Maintains clean story lifecycle - test → approve → next story creation
+**Why bash instead of Edit tool:** The Edit tool can encounter "File has been unexpectedly modified" errors when files are created/modified in the same session. Using bash commands (sed, cat) avoids these caching issues and executes reliably.
 
----
+**Workflow Benefit:** Maintains clean story lifecycle - test → approve → next story creation
 
 ### **Step 2: Load Workflow Configuration**
 
