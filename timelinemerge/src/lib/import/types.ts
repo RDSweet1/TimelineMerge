@@ -29,17 +29,17 @@ export interface ParsedTranscript {
   metadata?: {
     /** Total number of segments */
     totalSegments: number;
-    /** File format detected (.txt or .json) */
-    format: OtterTranscriptFormat;
+    /** File format detected (.txt, .json, or .docx) */
+    format: TranscriptFormat;
     /** Original file name */
     fileName: string;
   };
 }
 
 /**
- * Supported Otter.ai transcript formats
+ * Supported transcript formats
  */
-export type OtterTranscriptFormat = 'txt' | 'json';
+export type TranscriptFormat = 'txt' | 'json' | 'docx';
 
 /**
  * JSON format structure from Otter.ai export

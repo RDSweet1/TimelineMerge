@@ -3,13 +3,14 @@
 /**
  * TranscriptImporter Component
  *
- * Main component for importing Otter.ai transcript files.
+ * Main component for importing transcript files in .txt, .json, and .docx formats.
  * Handles file upload, validation, and import workflow.
  */
 
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { importTranscript } from '@/actions/import';
+import { readAndParseTranscriptFile } from '@/lib/import/transcript-parser';
 import { InspectionSelector } from './InspectionSelector';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -30,13 +31,13 @@ export function TranscriptImporter() {
     }
 
     // Validate file type
-    const validExtensions = ['.txt', '.json'];
+    const validExtensions = ['.txt', '.json', '.docx'];
     const fileExtension = selectedFile.name
       .substring(selectedFile.name.lastIndexOf('.'))
       .toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      toast.error('Invalid file type. Please upload a .txt or .json file.');
+      toast.error('Invalid file type. Please upload a .txt, .json, or .docx file.');
       e.target.value = ''; // Clear the input
       return;
     }
@@ -66,13 +67,19 @@ export function TranscriptImporter() {
     setIsImporting(true);
 
     try {
-      // Read file content on client side
-      const fileContent = await file.text();
+      // File size warning for large files
+      const warningSizeBytes = 10 * 1024 * 1024; // 10 MB
+      if (file.size > warningSizeBytes) {
+        toast.warning('Large file detected. This may take a moment to process.');
+      }
 
-      // Call Server Action with content string
+      // Parse file using wrapper function (handles all formats client-side)
+      const parsedTranscript = await readAndParseTranscriptFile(file);
+
+      // Call Server Action with parsed transcript
       const result = await importTranscript(
         selectedInspectionId,
-        fileContent,
+        parsedTranscript,
         file.name
       );
 
@@ -93,8 +100,12 @@ export function TranscriptImporter() {
         toast.error(result.error);
       }
     } catch (error) {
-      console.error('[TranscriptImporter] Failed to read file:', error);
-      toast.error('Failed to read file. Please try again.');
+      console.error('[TranscriptImporter] Failed to parse file:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to parse file. Please try again.');
+      }
     } finally {
       setIsImporting(false);
     }
@@ -113,12 +124,12 @@ export function TranscriptImporter() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="transcript-file">
-              Select Otter.ai transcript file (.txt or .json)
+              Select transcript file (.txt, .json, or .docx)
             </Label>
             <Input
               id="transcript-file"
               type="file"
-              accept=".txt,.json"
+              accept=".txt,.json,.docx"
               onChange={handleFileChange}
               disabled={isImporting}
             />
@@ -144,8 +155,9 @@ export function TranscriptImporter() {
           <div className="text-xs text-muted-foreground space-y-1">
             <p>Requirements:</p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>File format: .txt or .json (Otter.ai export)</li>
+              <li>File format: .txt, .json, or .docx</li>
               <li>Maximum file size: 100 MB</li>
+              <li>Warning displayed for files larger than 10 MB</li>
               <li>Must select an inspection before importing</li>
             </ul>
           </div>

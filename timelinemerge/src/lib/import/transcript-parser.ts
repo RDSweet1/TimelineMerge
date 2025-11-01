@@ -1,24 +1,79 @@
 /**
  * Otter.ai Transcript Parser
  *
- * Parses Otter.ai transcript files in both .txt and .json formats.
+ * Parses transcript files in .txt, .json, and .docx formats.
  * Extracts timestamps, speaker labels, and text content.
  * Normalizes all timestamps to HH:MM:SS format for uniform storage.
  */
 
+import mammoth from 'mammoth';
 import {
   TranscriptSegment,
   ParsedTranscript,
-  OtterTranscriptFormat,
+  TranscriptFormat,
   OtterJsonTranscript,
   OtterJsonSegment,
 } from './types';
 
 /**
+ * Read and parse transcript file (client-side wrapper)
+ *
+ * This wrapper function handles all file format detection and reading client-side.
+ * It extracts plain text from .docx files using mammoth.js, then calls the
+ * existing parseOtterTranscript() function to parse the content.
+ *
+ * @param file - File object from file input
+ * @returns ParsedTranscript with segments and metadata
+ * @throws Error if file format is unsupported or parsing fails
+ */
+export async function readAndParseTranscriptFile(
+  file: File
+): Promise<ParsedTranscript> {
+  try {
+    let fileContent: string;
+
+    // Check file extension
+    const fileExtension = file.name
+      .substring(file.name.lastIndexOf('.'))
+      .toLowerCase();
+
+    if (fileExtension === '.docx') {
+      // Extract raw text from Word document using mammoth
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        fileContent = result.value;
+      } catch (mammothError) {
+        console.error('[Parser] Mammoth extraction failed:', mammothError);
+        throw new Error(
+          'Failed to read Word document. The file may be corrupted or password-protected.'
+        );
+      }
+    } else if (fileExtension === '.txt' || fileExtension === '.json') {
+      // Read as plain text
+      fileContent = await file.text();
+    } else {
+      throw new Error(
+        'Unsupported file format. Please upload a .txt, .json, or .docx file.'
+      );
+    }
+
+    // Call existing parseOtterTranscript() with extracted text
+    return parseOtterTranscript(fileContent, file.name);
+  } catch (error) {
+    // Re-throw if already a formatted error message
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to parse file');
+  }
+}
+
+/**
  * Parse Otter.ai transcript file (auto-detects format from fileName)
  *
  * @param fileContent - File content as string
- * @param fileName - File name (used to detect format: .txt or .json)
+ * @param fileName - File name (used to detect format: .txt, .json, or .docx)
  * @returns ParsedTranscript with segments and metadata
  * @throws Error if file format is unsupported or parsing fails
  */
@@ -30,14 +85,22 @@ export function parseOtterTranscript(
   const extension = fileName
     .substring(fileName.lastIndexOf('.'))
     .toLowerCase();
-  const format: OtterTranscriptFormat =
-    extension === '.json' ? 'json' : 'txt';
+  
+  let format: TranscriptFormat;
+  if (extension === '.json') {
+    format = 'json';
+  } else if (extension === '.docx') {
+    format = 'docx';
+  } else {
+    format = 'txt';
+  }
 
-  // Parse based on format
+  // Parse based on format (docx has been converted to plain text by wrapper)
   let segments: TranscriptSegment[];
   if (format === 'json') {
     segments = parseOtterJsonFormat(fileContent);
   } else {
+    // Both .txt and .docx use same text format parsing
     segments = parseOtterTxtFormat(fileContent);
   }
 
@@ -51,7 +114,6 @@ export function parseOtterTranscript(
     },
   };
 }
-
 /**
  * Parse Otter.ai text format (.txt)
  *

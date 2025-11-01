@@ -1,0 +1,286 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3.1</storyId>
+    <title>Word Document Parser</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-1-word-document-parser.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an inspector</asA>
+    <iWant>to import Word documents (.docx) containing transcript content</iWant>
+    <soThat>I can work with transcripts stored in Word format without manually converting them to .txt or .json files</soThat>
+    <tasks>
+- Task 1: Install mammoth.js Dependency (AC: #4)
+  - Install mammoth package as production dependency: npm install mammoth
+  - Install mammoth type definitions: npm install --save-dev @types/mammoth
+  - Verify mammoth is browser-compatible (runs in client-side code)
+  - Note: mammoth.js bundle size is ~100 KB
+
+- Task 2: Update Parser Types (AC: #7)
+  - Update src/lib/import/types.ts to rename OtterTranscriptFormat to TranscriptFormat
+  - Update TranscriptFormat union: 'txt' | 'json' | 'docx'
+  - Update all references from OtterTranscriptFormat to TranscriptFormat throughout codebase
+  - Verify TranscriptSegment and ParsedTranscript types work with .docx format
+  - Alternative: Keep OtterTranscriptFormat as 'txt' | 'json' and handle .docx separately in format detection
+
+- Task 3: Implement Client-Side Wrapper Function (AC: #4, #5, #6, #7, #12)
+  - Create readAndParseTranscriptFile() wrapper function in src/lib/import/transcript-parser.ts
+  - Accept File object as parameter
+  - Check file extension (.txt, .json, .docx)
+  - If .docx: use mammoth.extractRawText() to extract plain text, then call parseOtterTranscript() with extracted text
+  - If .txt/.json: read file.text() and call parseOtterTranscript() with text content
+  - Return ParsedTranscript from parseOtterTranscript()
+  - DO NOT change parseOtterTranscript() signature - it remains (fileContent: string, fileName: string)
+  - Add error handling for mammoth failures with specific message: "Failed to read Word document. The file may be corrupted or password-protected."
+  - Handle extraction errors gracefully with descriptive messages
+
+- Task 4: Update parseOtterTranscript for Timestamp Fallback (AC: #5, #6)
+  - Review parseOtterTranscript() function in src/lib/import/transcript-parser.ts
+  - Ensure it handles documents with NO timestamps gracefully
+  - If no timestamps found in text, assign sequential timestamps (00:00:00, 00:00:01, 00:00:02, ...)
+  - Reuse existing normalizeTimestamp() function for timestamp normalization
+  - Add explicit validation/testing for documents with NO timestamps
+  - DO NOT change function signature - keep it (fileContent: string, fileName: string)
+
+- Task 5: Update TranscriptImporter Component (AC: #1, #2, #3, #9, #11, #12)
+  - Update src/components/import/TranscriptImporter.tsx file input accept attribute
+  - Change accept=".txt,.json" to accept=".txt,.json,.docx"
+  - Update client-side file type validation to include .docx extension
+  - Update validExtensions array: ['.txt', '.json', '.docx']
+  - Replace file parsing logic to use readAndParseTranscriptFile(file) wrapper
+  - Call readAndParseTranscriptFile(file) which handles all format detection client-side
+  - Pass parsed result to importTranscript() Server Action (NO changes to Server Action signature)
+  - Add file size warning: if file.size > 10 MB, display warning toast before proceeding
+  - Maintain file size validation: reject files > 100 MB with error message
+  - Update error messages to mention .docx as valid format
+  - All parsing happens client-side before calling importTranscript()
+
+- Task 6: Verify Import Server Action Compatibility (AC: #8)
+  - Review src/actions/import.ts importTranscript() function
+  - Verify it accepts ParsedTranscript result from wrapper function (should work without changes)
+  - NO changes should be needed to importTranscript() signature or implementation
+  - Ensure batch insert works with .docx parsed segments (same as .txt/.json)
+  - Verify structured logging includes .docx format information (from fileName parameter)
+  - Verify error handling works for .docx parsing failures
+
+- Task 7: Test Word Document Import Workflow (AC: #1-12)
+  - Create test .docx file with transcript content and timestamps
+  - Create test .docx file without timestamps (fallback test)
+  - Create password-protected .docx file (error handling test)
+  - Create .docx file with images and tables (parsing test)
+  - Test file upload: select .docx file, verify UI updates
+  - Test file type validation: attempt to upload .doc (old format), verify error message
+  - Test file size validation: verify 100 MB limit enforced
+  - Test file size warning: upload 15 MB .docx, verify warning toast displayed
+  - Test .docx parsing: upload Word document, verify text extracted correctly
+  - Test timestamp extraction: verify timestamps found and normalized to HH:MM:SS
+  - Test timestamp fallback: verify sequential timestamps assigned when none found
+  - Test password-protected .docx: verify specific error message displayed
+  - Test import: verify items created in transcript_items table
+  - Test chronological ordering: verify index_position assigned correctly
+  - Test duplicate import: verify error handling works same as .txt/.json
+  - Test malformed .docx: upload corrupted file, verify error message displayed
+  - Test backward compatibility: verify .txt and .json imports still work correctly
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. File upload interface accepts .docx files in addition to .txt and .json
+2. Client-side file type validation enforced (.txt, .json, .docx only) with clear error messages
+3. Client-side file size validation enforced (< 100 MB) with clear error messages
+4. Parser extracts plain text content from Word document using mammoth.js (client-side only)
+5. Parser attempts to extract timestamps from document content using pattern matching
+6. Parser handles Word documents without timestamps gracefully (assigns sequential timestamps or uses fallback)
+7. Parsed Word document content follows same format as existing transcript parsing (TranscriptSegment array)
+8. Word document transcripts stored using existing importTranscript() Server Action (NO changes to Server Action)
+9. Import success/failure feedback displayed to user (same as existing transcript import)
+10. Handle parsing errors gracefully with specific error messages for Word document failures
+11. Display warning if .docx file size > 10 MB
+12. All parsing (including .docx) happens client-side before calling importTranscript()
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>TimelineMerge Product Requirements Document</title>
+        <section>Functional Requirements - Data Import & Processing</section>
+        <snippet>FR001: System shall import Otter.ai transcript files and parse timestamps, speaker labels, and text content. Story 1.3.1 extends this requirement to support Word document (.docx) format in addition to .txt and .json formats.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Project Structure - Import Module Location</section>
+        <snippet>Import module located at src/lib/import/ contains parser and types. Import components at src/components/import/ include TranscriptImporter.tsx. Server Actions at src/actions/import.ts follow ActionResult pattern.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Implementation Patterns - Server Action Pattern</section>
+        <snippet>All Server Actions MUST return ActionResult&lt;T&gt; (never throw to client). Pattern ensures structured error handling with { success: true, data: T } or { success: false, error: string }.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Cross-Cutting Concerns - Error Handling Strategy</section>
+        <snippet>Server Actions return structured result objects (never throw to client). Client-side error handling displays errors via ShadCN Toast component with user-friendly messages. Never expose technical details to users.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Cross-Cutting Concerns - Logging Strategy</section>
+        <snippet>Structured console logging format: console.log('[ModuleName] Action:', {data}). Module name convention for import operations is [Import]. All errors logged with context, error message, stack, and timestamp.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.3: Otter.ai Transcript Import</section>
+        <snippet>File upload interface accepts .txt or .json transcript files from Otter.ai. Parser extracts timestamps, speaker labels, and text content. Story 1.3.1 extends this to support .docx format using mammoth.js for client-side parsing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-3-1-word-document-parser.md</path>
+        <title>Story 1.3.1: Word Document Parser</title>
+        <section>Dev Notes - Word Document Parsing with mammoth.js</section>
+        <snippet>mammoth.js is browser-compatible library for parsing .docx files. Usage: mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() }) returns plain text. Client-side wrapper function handles format detection and calls existing parseOtterTranscript() with extracted text.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-3-1-word-document-parser.md</path>
+        <title>Story 1.3.1: Word Document Parser</title>
+        <section>Dev Notes - Client-Side Parsing Architecture</section>
+        <snippet>Create readAndParseTranscriptFile(file: File) wrapper function. Wrapper handles format detection based on file extension. If .docx: use mammoth to extract text, then call parseOtterTranscript(). If .txt/.json: read file.text() and call parseOtterTranscript(). parseOtterTranscript() signature DOES NOT change - remains string-based. importTranscript() Server Action DOES NOT need changes.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/import/types.ts</path>
+        <kind>types</kind>
+        <symbol>TranscriptFormat, TranscriptSegment, ParsedTranscript</symbol>
+        <lines>N/A - file to be created in Story 1.3</lines>
+        <reason>Type definitions for transcript parsing. Story 1.3.1 will rename OtterTranscriptFormat to TranscriptFormat and add 'docx' to union type.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/import/transcript-parser.ts</path>
+        <kind>parser</kind>
+        <symbol>parseOtterTranscript, normalizeTimestamp, readAndParseTranscriptFile</symbol>
+        <lines>N/A - file to be created in Story 1.3</lines>
+        <reason>Core parser implementation. Story 1.3.1 will add readAndParseTranscriptFile() wrapper function that uses mammoth.js for .docx parsing and calls existing parseOtterTranscript() with extracted text. parseOtterTranscript() signature will NOT change.</reason>
+      </artifact>
+      <artifact>
+        <path>src/components/import/TranscriptImporter.tsx</path>
+        <kind>component</kind>
+        <symbol>TranscriptImporter</symbol>
+        <lines>N/A - file to be created in Story 1.3</lines>
+        <reason>File upload and import UI component. Story 1.3.1 will update accept attribute to include .docx, add file size warning for files > 10 MB, and replace parsing logic to use readAndParseTranscriptFile() wrapper.</reason>
+      </artifact>
+      <artifact>
+        <path>src/actions/import.ts</path>
+        <kind>server-action</kind>
+        <symbol>importTranscript</symbol>
+        <lines>N/A - file to be created in Story 1.3</lines>
+        <reason>Import Server Action following ActionResult pattern. Story 1.3.1 requires NO changes - wrapper function provides compatible ParsedTranscript result.</reason>
+      </artifact>
+      <artifact>
+        <path>package.json</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>N/A - file to be created in Story 1.1</lines>
+        <reason>Project dependencies. Story 1.3.1 will add mammoth (production dependency) and @types/mammoth (dev dependency).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <mammoth>To be installed - production dependency for .docx parsing (~100 KB bundle size)</mammoth>
+        <@types/mammoth>To be installed - dev dependency for TypeScript type definitions</@types/mammoth>
+        <@supabase/supabase-js>Specified in architecture.md - Supabase client library</@supabase/supabase-js>
+        <@tanstack/react-query>Specified in architecture.md - State management for server state sync</@tanstack/react-query>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- MUST maintain backward compatibility with existing .txt and .json transcript imports
+- MUST NOT modify parseOtterTranscript() signature - it remains (fileContent: string, fileName: string)
+- MUST NOT modify importTranscript() Server Action signature or implementation
+- ALL parsing (including .docx) MUST happen client-side before Server Action call
+- File size limit: 100 MB (hard limit), 10 MB (warning threshold)
+- Wrapper function pattern: readAndParseTranscriptFile(file: File) handles all format detection client-side
+- mammoth.js MUST be installed as production dependency (required in browser bundle)
+- Error messages MUST be user-friendly (no technical stack traces or library errors)
+- Component files use PascalCase naming (TranscriptImporter.tsx)
+- Library files use kebab-case naming (transcript-parser.ts)
+- Server Actions MUST return ActionResult&lt;T&gt; (never throw to client)
+- Logging MUST follow structured format: console.error('[Import] Message:', {context})
+- Specific error message for Word document failures: "Failed to read Word document. The file may be corrupted or password-protected."
+- Documents without timestamps MUST be handled gracefully with sequential timestamp fallback (00:00:00, 00:00:01, ...)
+- Client-side file type validation MUST enforce .txt, .json, .docx only
+- Client-side file size validation MUST enforce < 100 MB limit
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>parseOtterTranscript</name>
+      <kind>function signature</kind>
+      <signature>function parseOtterTranscript(fileContent: string, fileName: string): ParsedTranscript</signature>
+      <path>src/lib/import/transcript-parser.ts</path>
+      <notes>DO NOT CHANGE - Existing function signature must be preserved. Wrapper function will call this after extracting text from .docx files.</notes>
+    </interface>
+    <interface>
+      <name>readAndParseTranscriptFile</name>
+      <kind>function signature</kind>
+      <signature>async function readAndParseTranscriptFile(file: File): Promise&lt;ParsedTranscript&gt;</signature>
+      <path>src/lib/import/transcript-parser.ts</path>
+      <notes>NEW function to be created in Story 1.3.1. Client-side wrapper that handles format detection (.txt, .json, .docx) and calls parseOtterTranscript() with extracted text.</notes>
+    </interface>
+    <interface>
+      <name>importTranscript</name>
+      <kind>server action</kind>
+      <signature>async function importTranscript(inspectionId: string, parsedTranscript: ParsedTranscript, fileName: string): Promise&lt;ActionResult&lt;{ count: number }&gt;&gt;</signature>
+      <path>src/actions/import.ts</path>
+      <notes>NO CHANGES NEEDED - Server Action accepts ParsedTranscript from wrapper function. Wrapper provides compatible result for all formats (.txt, .json, .docx).</notes>
+    </interface>
+    <interface>
+      <name>mammoth.extractRawText</name>
+      <kind>external library API</kind>
+      <signature>mammoth.extractRawText({ arrayBuffer: ArrayBuffer }): Promise&lt;{ value: string, messages: Message[] }&gt;</signature>
+      <path>node_modules/mammoth</path>
+      <notes>External API from mammoth.js library. Used to extract plain text from Word document. Result.value contains extracted text string.</notes>
+    </interface>
+    <interface>
+      <name>TranscriptFormat</name>
+      <kind>TypeScript union type</kind>
+      <signature>type TranscriptFormat = 'txt' | 'json' | 'docx'</signature>
+      <path>src/lib/import/types.ts</path>
+      <notes>Renamed from OtterTranscriptFormat. Add 'docx' to union type. Update all references throughout codebase.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Manual testing required per architecture.md. No automated unit tests for this story. Test scenarios should validate .docx parsing, timestamp extraction, fallback behavior, file size validation, and backward compatibility with existing .txt/.json imports.</standards>
+    <locations>Test files to be created manually (not automated tests). Test .docx files should be placed in project test data directory for validation.</locations>
+    <ideas>
+1. Basic .docx import test (AC #1, #4, #7, #8, #9): Create Word document with Otter.ai-style transcript (speaker labels and timestamps). Upload via UI. Verify parsing extracts text, speaker labels, and timestamps. Verify items inserted in database with correct index_position. Verify success toast displayed.
+
+2. No timestamps fallback test (AC #5, #6): Create Word document with plain text (no timestamps). Upload and verify sequential timestamps assigned (00:00:00, 00:00:01, 00:00:02). Verify items stored correctly with fallback timestamps.
+
+3. File type validation test (AC #2): Attempt to upload .doc (old Word format). Verify error message: "Invalid file type. Please upload .txt, .json, or .docx file." Verify file rejected.
+
+4. File size validation test (AC #3, #11): Create or use 150 MB .docx file. Verify rejection with error message: "File is too large. Maximum size is 100 MB." Create 15 MB .docx file. Verify warning toast: "Large file detected. This may take a moment to process." then verify successful import.
+
+5. Password-protected .docx test (AC #10): Create password-protected Word document. Attempt upload. Verify specific error message: "Failed to read Word document. The file may be corrupted or password-protected."
+
+6. Malformed .docx test (AC #10): Create corrupted .docx file (truncate valid file). Attempt upload. Verify error handling with user-friendly message (not technical stack trace).
+
+7. Complex document test (AC #4): Create .docx with images, tables, formatting. Upload and verify plain text extraction works (images/tables ignored, only text extracted).
+
+8. Backward compatibility test (AC #12): Upload .txt file with Otter transcript. Verify existing parsing still works. Upload .json file. Verify JSON parsing still works. Confirm no regression in existing functionality.
+
+9. Duplicate import test (AC #8): Upload same .docx twice to same inspection. Verify UNIQUE constraint handling with user-friendly message (similar to .txt/.json behavior).
+
+10. Timestamp pattern matching test (AC #5): Create .docx with various timestamp formats (MM:SS, HH:MM:SS, [00:03:45], "3:45 -"). Upload and verify timestamp extraction and normalization to HH:MM:SS format.
+    </ideas>
+  </tests>
+</story-context>

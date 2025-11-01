@@ -13,22 +13,22 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { ActionResult } from '@/types/database';
-import { parseOtterTranscript } from '@/lib/import/transcript-parser';
+import { ParsedTranscript } from '@/lib/import/types';
 
 /**
  * Import Otter.ai transcript file
  *
  * Parses the transcript content, extracts segments, and stores them as transcript items.
- * File reading happens on the client side using file.text(), content is passed as string.
- *
+  * Receives pre-parsed transcript content and stores as transcript items.
+  * File reading and parsing happen on the client side using readAndParseTranscriptFile().
  * @param inspectionId - UUID of inspection to import into
- * @param fileContent - File content as string (read on client)
- * @param fileName - File name (used to detect format: .txt or .json)
+  * @param parsedTranscript - Parsed transcript with segments (parsed on client)
+  * @param fileName - File name (for logging and metadata)
  * @returns ActionResult with count of imported items or error
  */
 export async function importTranscript(
   inspectionId: string,
-  fileContent: string,
+  parsedTranscript: ParsedTranscript,
   fileName: string
 ): Promise<ActionResult<{ count: number }>> {
   try {
@@ -36,8 +36,8 @@ export async function importTranscript(
     if (!inspectionId || inspectionId.trim() === '') {
       return { success: false, error: 'Inspection ID is required' };
     }
-    if (!fileContent || fileContent.trim().length === 0) {
-      return { success: false, error: 'File content is empty' };
+    if (!parsedTranscript || !parsedTranscript.segments || parsedTranscript.segments.length === 0) {
+      return { success: false, error: 'Parsed transcript is empty or invalid' };
     }
     if (!fileName || fileName.trim() === '') {
       return { success: false, error: 'File name is required' };
@@ -46,51 +46,12 @@ export async function importTranscript(
     console.log('[Import] Starting transcript import:', {
       inspectionId,
       fileName,
-      contentLength: fileContent.length,
+      segmentCount: parsedTranscript.segments.length,
+      format: parsedTranscript.metadata?.format,
       timestamp: new Date().toISOString(),
     });
-
-    // Parse transcript (fileContent is string, fileName for format detection)
-    let parsed;
-    try {
-      parsed = parseOtterTranscript(fileContent, fileName);
-    } catch (parseError) {
-      console.error('[Import] Failed to parse transcript:', {
-        inspectionId,
-        fileName,
-        error:
-          parseError instanceof Error
-            ? parseError.message
-            : 'Unknown parse error',
-        timestamp: new Date().toISOString(),
-      });
-
-      return {
-        success: false,
-        error:
-          parseError instanceof Error
-            ? parseError.message
-            : 'Failed to parse transcript file',
-      };
-    }
-
-    if (!parsed.segments || parsed.segments.length === 0) {
-      return {
-        success: false,
-        error: 'No transcript segments found in file',
-      };
-    }
-
-    console.log('[Import] Parsed transcript segments:', {
-      inspectionId,
-      fileName,
-      segmentCount: parsed.segments.length,
-      format: parsed.metadata?.format,
-      timestamp: new Date().toISOString(),
-    });
-
     // Sort segments by timestamp (chronological order)
-    const sortedSegments = parsed.segments.sort((a, b) =>
+    const sortedSegments = parsedTranscript.segments.sort((a, b) =>
       a.timestamp.localeCompare(b.timestamp)
     );
 
