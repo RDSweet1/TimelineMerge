@@ -1,0 +1,54 @@
+- [x] **Task 1: Create Supabase Project and Configure Connection** (AC: #1, #6)
+  - [x] Create new Supabase project at https://supabase.com/dashboard
+  - [x] Copy project URL and anon key from Supabase dashboard (Settings → API)
+  - [x] Update .env.local with actual Supabase credentials
+  - [x] Create src/lib/supabase/client.ts for client-side Supabase client
+  - [x] Create src/lib/supabase/server.ts for server-side Supabase client (Next.js Server Actions)
+  - [x] Verify clients can connect to Supabase (test simple query)
+
+- [x] **Task 2: Create Database Schema Migration** (AC: #2, #3, #4)
+  - [x] Create supabase/migrations/ directory
+  - [x] Create 001_initial_schema.sql with complete schema SQL
+  - [x] Define projects table with UUID primary key, CASCADE delete relationships
+  - [x] Define inspections table with project_id foreign key, site_type_schema enum check
+  - [x] Define transcript_items table with UNIQUE(inspection_id, index_position), indexes
+  - [x] Define photo_items table with UNIQUE(inspection_id, index_position), indexes, JSONB exif_data
+  - [x] Define note_items table with UNIQUE(inspection_id, index_position), enum checks for note_type
+  - [x] Define location_attributes table with polymorphic item_id/item_type, decimal confidence
+  - [x] Create timeline_items VIEW unioning all item types ordered by index_position
+  - [x] Add all required indexes: inspection_id, index_position combinations
+
+- [x] **Task 3: Run Database Migration** (AC: #2)
+  - [x] Execute migration SQL in Supabase SQL Editor or via CLI
+  - [x] Verify all tables created successfully in Supabase Table Editor
+  - [x] Verify all indexes created (check Supabase Database → Performance)
+  - [x] Verify timeline_items VIEW is queryable
+
+- [x] **Task 4: Create TypeScript Type Definitions** (AC: #2, #5)
+  - [x] Create src/types/database.ts with interfaces matching all tables
+  - [x] Define Project, Inspection, TranscriptItem, PhotoItem, NoteItem, LocationAttributes types
+  - [x] Define TimelineItem type for unified VIEW results
+  - [x] Define ActionResult<T> type for Server Action responses
+  - [x] Export all types for use in Server Actions and components
+
+- [x] **Task 5: Create Server Actions for CRUD Operations** (AC: #5, #7)
+  - [x] Create src/actions/projects.ts with 'use server' directive
+  - [x] Implement createProject(name, clientName) Server Action
+  - [x] Implement createInspection(projectId, name, date, siteType) Server Action
+  - [x] Implement createTranscriptItem(inspectionId, item) Server Action
+  - [x] Implement createPhotoItem(inspectionId, item) Server Action
+  - [x] Implement getProject(id) Server Action for retrieving project data
+  - [x] Implement getInspection(id) Server Action for retrieving inspection data
+  - [x] All Server Actions must return ActionResult<T> (never throw to client)
+  - [x] Add structured logging: console.error('[DB] Error:', {...}) for all errors
+
+- [x] **Task 6: Test Database Operations** (AC: #7)
+  - [x] Create temporary test page or script to verify Server Actions
+  - [x] Test createProject: create project, verify in Supabase Table Editor
+  - [x] Test createInspection: create inspection linked to project, verify cascade
+  - [x] Test createTranscriptItem: create item with index_position, verify UNIQUE constraint
+  - [x] Test createPhotoItem: create item with JSONB exif_data, verify index_position
+  - [x] Test UNIQUE constraint: attempt duplicate index_position, verify error handling
+  - [x] Test cascade delete: delete project, verify inspections and items deleted
+  - [x] Test timeline_items VIEW: query view, verify all item types returned in order
+  - [x] Document test results in story completion notes

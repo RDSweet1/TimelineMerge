@@ -80,7 +80,7 @@ orchestration:
     agent: "dev"
     workflow: "story-done"
     description: "Mark the previous story (just tested) as Done and advance queue"
-    condition: "workflow-status has IN_PROGRESS_STORY populated"
+    condition: "workflow-status has 'IN_PROGRESS_STORY' or 'REVIEW' populated"
     inputs:
       - workflow_status: "From SM orchestrator memory"
     outputs:

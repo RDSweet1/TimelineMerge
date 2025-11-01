@@ -1,6 +1,6 @@
 # Story 1.1: Project Setup & Infrastructure
 
-Status: review
+Status: done
 
 ## Story
 
@@ -247,3 +247,7 @@ Claude Sonnet 4.5 (claude-sonnet-4-5-20250929)
 - timelinemerge/src/components/ui/card.tsx
 - timelinemerge/src/components/ui/input.tsx
 - timelinemerge/src/components/ui/sonner.tsx
+
+### Completion Notes
+**Completed:** 2025-11-01
+**Definition of Done:** All acceptance criteria met, code reviewed, tests passing

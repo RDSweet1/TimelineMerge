@@ -5,9 +5,27 @@
       "Bash(if [ -d .git ])",
       "Bash(then echo \"Git repo found\")",
       "Bash(else echo \"No git repo\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp --help:*)",
+      "Bash(claude mcp:*)",
+      "Bash(npx:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:supabase.com)",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__execute_sql",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_snapshot",
+      "mcp__supabase__get_advisors",
+      "mcp__playwright__browser_close"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase",
+    "playwright"
+  ]
 }

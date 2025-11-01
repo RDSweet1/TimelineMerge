@@ -1,0 +1,412 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Database Foundation</title>
+    <status>ready-for-dev</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-1.2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a Supabase database connected with a complete schema supporting projects, inspections, and timeline items</iWant>
+    <soThat>I can store and retrieve inspection data in the proper hierarchical structure</soThat>
+    <tasks>
+      <task id="1" status="pending">
+        <name>Create Supabase Project and Configure Connection</name>
+        <criteria>AC: #1, #6</criteria>
+        <subtasks>
+          <subtask>Create new Supabase project at https://supabase.com/dashboard</subtask>
+          <subtask>Copy project URL and anon key from Supabase dashboard (Settings → API)</subtask>
+          <subtask>Update .env.local with actual Supabase credentials</subtask>
+          <subtask>Create src/lib/supabase/client.ts for client-side Supabase client</subtask>
+          <subtask>Create src/lib/supabase/server.ts for server-side Supabase client (Next.js Server Actions)</subtask>
+          <subtask>Verify clients can connect to Supabase (test simple query)</subtask>
+        </subtasks>
+      </task>
+      <task id="2" status="pending">
+        <name>Create Database Schema Migration</name>
+        <criteria>AC: #2, #3, #4</criteria>
+        <subtasks>
+          <subtask>Create supabase/migrations/ directory</subtask>
+          <subtask>Create 001_initial_schema.sql with complete schema SQL</subtask>
+          <subtask>Define projects table with UUID primary key, CASCADE delete relationships</subtask>
+          <subtask>Define inspections table with project_id foreign key, site_type_schema enum check</subtask>
+          <subtask>Define transcript_items table with UNIQUE(inspection_id, index_position), indexes</subtask>
+          <subtask>Define photo_items table with UNIQUE(inspection_id, index_position), indexes, JSONB exif_data</subtask>
+          <subtask>Define note_items table with UNIQUE(inspection_id, index_position), enum checks for note_type</subtask>
+          <subtask>Define location_attributes table with polymorphic item_id/item_type, decimal confidence</subtask>
+          <subtask>Create timeline_items VIEW unioning all item types ordered by index_position</subtask>
+          <subtask>Add all required indexes: inspection_id, index_position combinations</subtask>
+        </subtasks>
+      </task>
+      <task id="3" status="pending">
+        <name>Run Database Migration</name>
+        <criteria>AC: #2</criteria>
+        <subtasks>
+          <subtask>Execute migration SQL in Supabase SQL Editor or via CLI</subtask>
+          <subtask>Verify all tables created successfully in Supabase Table Editor</subtask>
+          <subtask>Verify all indexes created (check Supabase Database → Performance)</subtask>
+          <subtask>Verify timeline_items VIEW is queryable</subtask>
+        </subtasks>
+      </task>
+      <task id="4" status="pending">
+        <name>Create TypeScript Type Definitions</name>
+        <criteria>AC: #2, #5</criteria>
+        <subtasks>
+          <subtask>Create src/types/database.ts with interfaces matching all tables</subtask>
+          <subtask>Define Project, Inspection, TranscriptItem, PhotoItem, NoteItem, LocationAttributes types</subtask>
+          <subtask>Define TimelineItem type for unified VIEW results</subtask>
+          <subtask>Define ActionResult&lt;T&gt; type for Server Action responses</subtask>
+          <subtask>Export all types for use in Server Actions and components</subtask>
+        </subtasks>
+      </task>
+      <task id="5" status="pending">
+        <name>Create Server Actions for CRUD Operations</name>
+        <criteria>AC: #5, #7</criteria>
+        <subtasks>
+          <subtask>Create src/actions/projects.ts with 'use server' directive</subtask>
+          <subtask>Implement createProject(name, clientName) Server Action</subtask>
+          <subtask>Implement createInspection(projectId, name, date, siteType) Server Action</subtask>
+          <subtask>Implement createTranscriptItem(inspectionId, item) Server Action</subtask>
+          <subtask>Implement createPhotoItem(inspectionId, item) Server Action</subtask>
+          <subtask>Implement getProject(id) Server Action for retrieving project data</subtask>
+          <subtask>Implement getInspection(id) Server Action for retrieving inspection data</subtask>
+          <subtask>All Server Actions must return ActionResult&lt;T&gt; (never throw to client)</subtask>
+          <subtask>Add structured logging: console.error('[DB] Error:', {...}) for all errors</subtask>
+        </subtasks>
+      </task>
+      <task id="6" status="pending">
+        <name>Test Database Operations</name>
+        <criteria>AC: #7</criteria>
+        <subtasks>
+          <subtask>Create temporary test page or script to verify Server Actions</subtask>
+          <subtask>Test createProject: create project, verify in Supabase Table Editor</subtask>
+          <subtask>Test createInspection: create inspection linked to project, verify cascade</subtask>
+          <subtask>Test createTranscriptItem: create item with index_position, verify UNIQUE constraint</subtask>
+          <subtask>Test createPhotoItem: create item with JSONB exif_data, verify index_position</subtask>
+          <subtask>Test UNIQUE constraint: attempt duplicate index_position, verify error handling</subtask>
+          <subtask>Test cascade delete: delete project, verify inspections and items deleted</subtask>
+          <subtask>Test timeline_items VIEW: query view, verify all item types returned in order</subtask>
+          <subtask>Document test results in story completion notes</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Supabase project created and connected to Next.js application</criterion>
+    <criterion id="2">Complete database schema created with all tables: projects, inspections, transcript_items, photo_items, note_items, location_attributes, timeline_items VIEW</criterion>
+    <criterion id="3">UNIQUE constraints on (inspection_id, index_position) for all item tables to enforce ordering</criterion>
+    <criterion id="4">Indexes created on inspection_id and index_position columns for performance</criterion>
+    <criterion id="5">Database connection tested and verified from Next.js Server Actions</criterion>
+    <criterion id="6">Environment variables properly configured for Supabase credentials in .env.local</criterion>
+    <criterion id="7">Basic CRUD operations tested against all tables (create project, create inspection, create items)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Database Schema</section>
+        <snippet>Complete SQL schema for all 6 tables (projects, inspections, transcript_items, photo_items, note_items, location_attributes) plus timeline_items VIEW. Defines hierarchical structure with ON DELETE CASCADE, UNIQUE constraints on (inspection_id, index_position), and all performance indexes. Lines 138-285.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Server Action Pattern</section>
+        <snippet>All Server Actions MUST return ActionResult&lt;T&gt; (never throw to client). Pattern includes input validation, structured logging with [Module] prefix, error handling, and use of createClient() from @/lib/supabase/server. Lines 664-700.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Error Handling Strategy</section>
+        <snippet>Server Actions return structured result objects: ActionResult&lt;T&gt; = { success: true; data: T } | { success: false; error: string }. Never throw errors to client. Include structured logging for all errors. Lines 299-310.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Project Structure</section>
+        <snippet>Database-related files: src/lib/supabase/ (client.ts, server.ts, types.ts), src/actions/ (Server Actions), src/types/ (TypeScript interfaces), supabase/migrations/ (SQL schema files). Lines 404-507.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-002: Normalized Database with Separate Tables</section>
+        <snippet>Database design uses separate tables per item type (transcript_items, photo_items, note_items) for type safety and clarity. Polymorphic location_attributes table uses item_id + item_type. timeline_items VIEW provides unified query interface. UNIQUE constraints enforce strict ordering. Lines 1036-1057.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Type Definitions</section>
+        <snippet>TypeScript types mirror database schema: Project, Inspection, TranscriptItem, PhotoItem, NoteItem, LocationAttributes, TimelineItem. All use UUID for id fields, TIMESTAMPTZ for dates, specific enums for constrained fields. Lines 775-812.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Starter Template Decisions</section>
+        <snippet>Supabase client initialization requires two separate clients: client-side (src/lib/supabase/client.ts) for React components, server-side (src/lib/supabase/server.ts) for Server Actions and API routes. Uses NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables. Lines 87-99.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Naming Conventions</section>
+        <snippet>Database tables: snake_case, plural (projects, transcript_items). TypeScript types: PascalCase (Project, TranscriptItem). Files: kebab-case.ts. Server Actions: camelCase functions (createProject, getInspection). Lines 595-607, 937-954.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-001: Next.js Server Actions over API Routes</section>
+        <snippet>Use Next.js Server Actions for all backend operations instead of traditional API routes. Simpler code, type-safe end-to-end, automatic data revalidation, integrated with React Server Components. All backend logic must use 'use server' directive. Lines 1019-1034.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.2: Database Foundation</section>
+        <snippet>Establishes Supabase database with complete schema (6 tables + 1 view), Server Actions for CRUD operations, and database connection testing. Hierarchical project/inspection/item structure with cascade deletes, polymorphic location_attributes, and unified timeline_items VIEW.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Data Requirements</section>
+        <snippet>Database must support hierarchical project/inspection structure, multiple item types (transcripts, photos, notes) with strict ordering via index_position, flexible location attributes per item, and JSONB storage for EXIF metadata.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-1-project-setup-infrastructure.md</path>
+        <title>Story 1.1 Completion</title>
+        <section>Dev Agent Record - Completion Notes</section>
+        <snippet>Next.js 15.5 project initialized successfully. Supabase packages (@supabase/supabase-js, @supabase/ssr) already installed. .env.local file created with placeholders for NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. TypeScript configured with @/* import alias. Development server runs on port 3001. All 322 npm packages installed with 0 vulnerabilities.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>timelinemerge/.env.local</path>
+        <kind>environment</kind>
+        <symbol>NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY</symbol>
+        <lines>1-3</lines>
+        <reason>Environment file exists with placeholders. Task 1 will populate these with actual Supabase project credentials.</reason>
+      </artifact>
+      <artifact>
+        <path>timelinemerge/tsconfig.json</path>
+        <kind>config</kind>
+        <symbol>paths["@/*"]</symbol>
+        <lines>21-23</lines>
+        <reason>Import alias @/* configured for src directory. All new files will use this alias for imports (e.g., import { createClient } from '@/lib/supabase/server').</reason>
+      </artifact>
+      <artifact>
+        <path>timelinemerge/src/lib/utils.ts</path>
+        <kind>utility</kind>
+        <symbol>cn</symbol>
+        <lines>1-6</lines>
+        <reason>Existing utility function for className merging. Reference for utility file structure and naming convention.</reason>
+      </artifact>
+      <artifact>
+        <path>timelinemerge/src/app/layout.tsx</path>
+        <kind>layout</kind>
+        <symbol>RootLayout</symbol>
+        <lines>1-30</lines>
+        <reason>Existing root layout with metadata and Sonner toast provider. Shows Next.js 15 App Router structure and proper use of layout components.</reason>
+      </artifact>
+      <artifact>
+        <path>timelinemerge/src/components/ui/button.tsx</path>
+        <kind>component</kind>
+        <symbol>Button</symbol>
+        <lines>1-56</lines>
+        <reason>Example of existing ShadCN component structure. Reference for component patterns, TypeScript usage, and import conventions.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package name="@supabase/supabase-js" version="^2.78.0" type="dependency">
+          <purpose>Supabase JavaScript client library for database operations</purpose>
+        </package>
+        <package name="@supabase/ssr" version="^0.7.0" type="dependency">
+          <purpose>Supabase SSR helpers for Next.js Server Actions and cookies</purpose>
+        </package>
+        <package name="next" version="^15.0.3" type="dependency">
+          <purpose>Next.js framework with Server Actions support</purpose>
+        </package>
+        <package name="react" version="^19.0.0" type="dependency">
+          <purpose>React library for UI components</purpose>
+        </package>
+        <package name="typescript" version="^5" type="devDependency">
+          <purpose>TypeScript compiler for type checking</purpose>
+        </package>
+        <package name="@tanstack/react-query" version="^5.90.5" type="dependency">
+          <purpose>TanStack Query for server state management (future stories will wrap Server Actions)</purpose>
+        </package>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint priority="critical">
+      <name>Server Action Pattern Compliance</name>
+      <description>ALL Server Actions MUST follow the architecture pattern: (1) Use 'use server' directive, (2) Return ActionResult&lt;T&gt; never throw to client, (3) Validate input before database operations, (4) Use structured logging with [DB] prefix, (5) Use createClient() from @/lib/supabase/server</description>
+      <source>docs/architecture.md#Server-Action-Pattern</source>
+    </constraint>
+    <constraint priority="critical">
+      <name>Database Schema Integrity</name>
+      <description>Database schema MUST exactly match architecture.md specification: (1) All tables use UUID primary keys with gen_random_uuid(), (2) UNIQUE constraints on (inspection_id, index_position) for all item tables, (3) ON DELETE CASCADE for all foreign keys, (4) All indexes defined as specified, (5) timeline_items VIEW with exact column structure</description>
+      <source>docs/architecture.md#Database-Schema</source>
+    </constraint>
+    <constraint priority="high">
+      <name>File Location and Naming</name>
+      <description>Files MUST be created in specified locations: (1) Supabase clients in src/lib/supabase/, (2) Server Actions in src/actions/, (3) Types in src/types/, (4) Migrations in supabase/migrations/. Use kebab-case for files, PascalCase for types, camelCase for functions</description>
+      <source>docs/architecture.md#Project-Structure</source>
+    </constraint>
+    <constraint priority="high">
+      <name>Error Handling Standards</name>
+      <description>NEVER throw errors to client from Server Actions. Always return { success: false, error: string } for errors. Use structured logging: console.error('[DB] Error:', { context, error: error.message, timestamp })</description>
+      <source>docs/architecture.md#Error-Handling-Strategy</source>
+    </constraint>
+    <constraint priority="medium">
+      <name>Testing Approach</name>
+      <description>This story requires manual testing only (infrastructure setup). Test all CRUD operations and constraints via Supabase Table Editor and temporary test page. Document test results in Completion Notes. No automated tests required for this story</description>
+      <source>docs/architecture.md#Development-Environment-Setup</source>
+    </constraint>
+    <constraint priority="medium">
+      <name>Environment Variables</name>
+      <description>Use NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY from .env.local. These are safe for client-side use (NEXT_PUBLIC prefix). RLS (Row Level Security) not required for MVP - will add in future auth story</description>
+      <source>docs/architecture.md#Starter-Template-Decisions</source>
+    </constraint>
+    <constraint priority="low">
+      <name>Import Order Convention</name>
+      <description>Follow import order: React → External libraries → Internal (UI → Custom components → Hooks → Actions → Types → Utils). Use @/* alias for all src imports</description>
+      <source>docs/architecture.md#Implementation-Patterns</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ActionResult&lt;T&gt;</name>
+      <kind>TypeScript type</kind>
+      <signature>
+type ActionResult&lt;T&gt; =
+  | { success: true; data: T }
+  | { success: false; error: string };
+      </signature>
+      <path>src/types/database.ts</path>
+      <usage>ALL Server Actions must return this type. Never throw errors to client. Success case includes typed data, failure case includes user-friendly error message.</usage>
+    </interface>
+    <interface>
+      <name>createClient (server-side)</name>
+      <kind>Supabase client factory</kind>
+      <signature>
+export function createClient(): SupabaseClient&lt;Database&gt;
+      </signature>
+      <path>src/lib/supabase/server.ts</path>
+      <usage>Server Actions must call this to get Supabase client instance. Handles cookies for future authentication. Import: import { createClient } from '@/lib/supabase/server'</usage>
+    </interface>
+    <interface>
+      <name>createClient (client-side)</name>
+      <kind>Supabase client factory</kind>
+      <signature>
+export function createClient(): SupabaseClient&lt;Database&gt;
+      </signature>
+      <path>src/lib/supabase/client.ts</path>
+      <usage>React components must call this to get Supabase client instance for browser. Used for future real-time subscriptions. Import: import { createClient } from '@/lib/supabase/client'</usage>
+    </interface>
+    <interface>
+      <name>Database Schema Types</name>
+      <kind>TypeScript interfaces</kind>
+      <signature>
+// Core entity types
+interface Project { id: string; name: string; client_name: string | null; created_at: string; updated_at: string; }
+interface Inspection { id: string; project_id: string; name: string; inspection_date: string | null; site_type_schema: 'commercial_v1' | 'commercial_v2' | 'residential'; created_at: string; updated_at: string; }
+interface TranscriptItem { id: string; inspection_id: string; index_position: number; timestamp: string | null; speaker_label: string | null; text_content: string; created_at: string; updated_at: string; }
+interface PhotoItem { id: string; inspection_id: string; index_position: number; timestamp: string | null; file_path: string; caption: string | null; exif_data: Record&lt;string, any&gt; | null; created_at: string; updated_at: string; }
+interface NoteItem { id: string; inspection_id: string; index_position: number; note_type: 'header' | 'footer' | 'free_floating'; associated_item_id: string | null; associated_item_type: 'transcript' | 'photo' | null; text_content: string; created_at: string; updated_at: string; }
+interface LocationAttributes { id: string; item_id: string; item_type: 'transcript' | 'photo' | 'note'; building: string | null; floor: string | null; unit: string | null; room: string | null; monitor_point: string | null; extraction_confidence: number | null; is_inherited: boolean; manually_edited: boolean; created_at: string; updated_at: string; }
+interface TimelineItem { id: string; inspection_id: string; index_position: number; timestamp: string | null; item_type: 'transcript' | 'photo' | 'note'; content: string | null; speaker_label: string | null; file_path: string | null; caption: string | null; }
+      </signature>
+      <path>src/types/database.ts</path>
+      <usage>TypeScript interfaces matching database schema. All id fields are UUID strings. Dates are ISO 8601 strings. Enums use literal types. Export all types for use in Server Actions and components.</usage>
+    </interface>
+    <interface>
+      <name>Server Action Pattern</name>
+      <kind>Function pattern</kind>
+      <signature>
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult } from '@/types/database';
+
+export async function actionName(params): Promise&lt;ActionResult&lt;ReturnType&gt;&gt; {
+  try {
+    const supabase = createClient();
+
+    // Validate input
+    if (!requiredParam) {
+      return { success: false, error: 'Required parameter missing' };
+    }
+
+    // Perform operation
+    const { data, error } = await supabase.from('table').operation();
+
+    // Handle errors
+    if (error) {
+      console.error('[DB] Operation failed:', {
+        context: 'additional context',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+      return { success: false, error: 'User-friendly error message' };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[DB] Unexpected error:', {
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+      </signature>
+      <path>src/actions/*.ts</path>
+      <usage>ALL Server Actions must follow this exact pattern: 'use server' directive, ActionResult return type, input validation, structured error handling, structured logging with [DB] prefix, never throw to client.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      This story requires manual testing only (infrastructure setup). No automated tests are required. Test all database operations via: (1) Supabase Table Editor to verify schema creation, (2) Temporary test page calling Server Actions to verify CRUD operations, (3) Manual verification of UNIQUE constraints, CASCADE deletes, and timeline_items VIEW. Document all test results in Completion Notes section of story file. Future stories will add Jest/Vitest tests for business logic and integration tests for database queries.
+    </standards>
+    <locations>
+      <location>Manual testing via Supabase dashboard (Table Editor, SQL Editor)</location>
+      <location>Temporary test page in src/app/test/ (delete after testing)</location>
+      <location>Browser console for Server Action responses</location>
+      <location>Future: __tests__/ directory for automated tests (not in this story)</location>
+    </locations>
+    <ideas>
+      <idea ac="1,6">
+        <name>Supabase Connection Test</name>
+        <description>Create temporary test page that calls Server Action to query Supabase. Verify connection succeeds and returns data. Check browser network tab for successful API calls. Verify environment variables loaded correctly.</description>
+      </idea>
+      <idea ac="2,3,4">
+        <name>Schema Verification Test</name>
+        <description>Navigate to Supabase Table Editor. Verify all 6 tables exist (projects, inspections, transcript_items, photo_items, note_items, location_attributes). Check each table structure matches SQL schema. Verify timeline_items VIEW exists and is queryable. Check Supabase Database → Performance for all indexes.</description>
+      </idea>
+      <idea ac="7">
+        <name>CRUD Operations Test</name>
+        <description>Create test page that calls Server Actions: (1) Create project, verify in Table Editor, (2) Create inspection for project, verify foreign key link, (3) Create transcript_item with index_position=0, (4) Create photo_item with index_position=1 and JSONB exif_data, (5) Attempt duplicate index_position, verify error returned (not thrown), (6) Query timeline_items VIEW, verify both items appear in order.</description>
+      </idea>
+      <idea ac="7">
+        <name>Cascade Delete Test</name>
+        <description>Create project with inspection and multiple items. Delete project via Supabase Table Editor or Server Action. Verify all child inspections and items automatically deleted (CASCADE). Check Table Editor to confirm no orphaned records.</description>
+      </idea>
+      <idea ac="5,7">
+        <name>Error Handling Test</name>
+        <description>Test Server Actions return proper ActionResult on errors: (1) Invalid input returns { success: false, error: message }, (2) Duplicate UNIQUE constraint returns error (not thrown), (3) Foreign key violation returns error. Check browser console for structured logging with [DB] prefix. Verify no errors thrown to client (no unhandled promise rejections).</description>
+      </idea>
+      <idea ac="2">
+        <name>Timeline View Test</name>
+        <description>Create inspection with mixed item types (2 transcripts, 2 photos, 1 note) at different index_positions. Query timeline_items VIEW. Verify all items returned with correct item_type. Verify ORDER BY index_position works correctly. Check content field mapped correctly for each type (text_content for transcript/note, caption for photo).</description>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>
