@@ -54,3 +54,35 @@ export interface OtterJsonSegment {
 export interface OtterJsonTranscript {
   segments: OtterJsonSegment[];
 }
+
+/**
+ * Photo metadata extracted from EXIF data or file metadata
+ *
+ * Used for photo import workflow before conversion to PhotoItem entity
+ */
+export interface PhotoMetadata {
+  /** Timestamp from EXIF (DateTimeOriginal/CreateDate) or file.lastModified */
+  timestamp: Date | null;
+  /** Camera device info from EXIF (Make + Model) */
+  device: string | null;
+  /** GPS coordinates from EXIF */
+  gps: { lat: number; lon: number } | null;
+  /** Full file path (absolute or relative) */
+  filePath: string;
+  /** File name */
+  fileName: string;
+  /** File size in bytes */
+  fileSize: number;
+}
+
+/**
+ * Photo file with File handle and relative path
+ *
+ * Returned by directory picker, used for EXIF extraction
+ */
+export interface PhotoFile {
+  /** Browser File object */
+  file: File;
+  /** Relative path within selected directory */
+  relativePath: string;
+}

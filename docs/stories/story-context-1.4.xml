@@ -1,0 +1,1502 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Story Context XML for Story 1.4: Photo Metadata Import
+  Generated: 2025-11-01
+  Agent: Scrum Master (SM)
+  Purpose: Provides all necessary context for Dev agent to implement Story 1.4
+-->
+<story-context>
+  <metadata>
+    <story-number>1.4</story-number>
+    <story-title>Photo Metadata Import</story-title>
+    <story-status>ready-for-dev</story-status>
+    <story-file>C:\SourceCode\TimelineMerge\docs\stories\story-1.4.md</story-file>
+    <generated-date>2025-11-01</generated-date>
+    <generated-by>SM Agent</generated-by>
+  </metadata>
+
+  <!-- ========================================================================= -->
+  <!-- STORY DEFINITION -->
+  <!-- ========================================================================= -->
+
+  <story-definition>
+    <user-story>
+      As an inspector,
+      I want to import photos from a directory on my computer,
+      So that visual evidence is included in my inspection without moving the files.
+    </user-story>
+
+    <requirements-summary>
+      Story 1.4 implements the photo metadata import feature, enabling users to select a directory of inspection photos and automatically extract EXIF metadata (timestamps, device info, GPS) while keeping files in their original location. This story builds on the database foundation established in Story 1.2 and provides the second major data input mechanism for the application, complementing the transcript import from Story 1.3.
+
+      Key Requirements:
+      - Directory selection interface using File System Access API
+      - EXIF metadata extraction (timestamp, device, GPS coordinates)
+      - Photo items stored with file path reference (no file upload/movement)
+      - Chronological ordering using EXIF timestamp or file modification time fallback
+      - Supported formats: JPG, JPEG, PNG
+      - Handle missing EXIF data gracefully
+      - Import success summary with photo count
+      - Inspection selection/creation before import
+    </requirements-summary>
+
+    <acceptance-criteria>
+      <criterion id="AC1">User selects existing inspection or creates new inspection before import (using InspectionSelector from Story 1.3)</criterion>
+      <criterion id="AC2">Directory selection interface allows user to choose photo folder (using File System Access API)</criterion>
+      <criterion id="AC3">System scans selected directory and extracts EXIF metadata (timestamp, device, GPS if available)</criterion>
+      <criterion id="AC4">Photo items stored in database linked to selected inspection with file path reference (files stay in original location)</criterion>
+      <criterion id="AC5">Photo items receive index positions based on chronological timestamp order (EXIF timestamp or file modification time)</criterion>
+      <criterion id="AC6">Supported formats: JPG, JPEG, PNG (other file types ignored)</criterion>
+      <criterion id="AC7">Import handles missing EXIF data gracefully (use file modification time as fallback)</criterion>
+      <criterion id="AC8">Import success summary shows count of photos imported</criterion>
+      <criterion id="AC9">Duplicate imports fail with clear error message (inspection already has photo items)</criterion>
+      <criterion id="AC10">Handle File System Access API permissions with clear error messages</criterion>
+    </acceptance-criteria>
+  </story-definition>
+
+  <!-- ========================================================================= -->
+  <!-- TASK BREAKDOWN -->
+  <!-- ========================================================================= -->
+
+  <task-breakdown>
+    <task id="TASK1" acs="AC3,AC5,AC7">
+      <title>Create Photo Metadata Extraction Module</title>
+      <subtasks>
+        <subtask>Research and select EXIF library: exifr (lightweight, browser-compatible, supports JPG/PNG)</subtask>
+        <subtask>Install exifr: npm install exifr</subtask>
+        <subtask>Update src/lib/import/types.ts with photo-specific types</subtask>
+        <subtask>Define PhotoMetadata interface (timestamp: Date | null, device: string | null, gps: { lat: number, lon: number } | null, filePath: string, fileName: string, fileSize: number)</subtask>
+        <subtask>Define PhotoFile interface (file: File, relativePath: string)</subtask>
+        <subtask>Create src/lib/import/photo-metadata.ts with metadata extraction functions</subtask>
+        <subtask>Implement extractPhotoMetadata(file: File): Promise&lt;PhotoMetadata&gt;</subtask>
+        <subtask>Extract EXIF timestamp (DateTimeOriginal or CreateDate tags)</subtask>
+        <subtask>Extract device info (Make + Model tags)</subtask>
+        <subtask>Extract GPS coordinates (GPSLatitude + GPSLongitude tags)</subtask>
+        <subtask>Fallback to file.lastModified if no EXIF timestamp</subtask>
+        <subtask>Store full file path (file.webkitRelativePath or file.name)</subtask>
+        <subtask>Handle EXIF parsing errors gracefully (return null for missing fields)</subtask>
+        <subtask>Add error handling for corrupted image files</subtask>
+      </subtasks>
+    </task>
+
+    <task id="TASK2" acs="AC2,AC10">
+      <title>Implement File System Access API Directory Picker</title>
+      <subtasks>
+        <subtask>Create src/lib/import/directory-picker.ts helper module</subtask>
+        <subtask>Implement selectPhotoDirectory(): Promise&lt;PhotoFile[]&gt;</subtask>
+        <subtask>Use window.showDirectoryPicker() for directory selection</subtask>
+        <subtask>Iterate through directory entries recursively (handle subdirectories)</subtask>
+        <subtask>Filter for supported file types: .jpg, .jpeg, .png (case-insensitive)</subtask>
+        <subtask>Extract relative file paths for storage</subtask>
+        <subtask>Handle File System Access API not supported (fallback message or input[type=file] with webkitdirectory)</subtask>
+        <subtask>Handle permission denied errors with clear user message</subtask>
+        <subtask>Return array of PhotoFile objects with File handle and relative path</subtask>
+      </subtasks>
+    </task>
+
+    <task id="TASK3" acs="AC4,AC5,AC8,AC9">
+      <title>Create Photo Import Server Action</title>
+      <subtasks>
+        <subtask>Update src/actions/import.ts with importPhotos() Server Action</subtask>
+        <subtask>Implement importPhotos(inspectionId: string, photos: PhotoMetadata[]): Promise&lt;ActionResult&lt;{ count: number }&gt;&gt;</subtask>
+        <subtask>Validate inspectionId is provided</subtask>
+        <subtask>Validate photos array is not empty</subtask>
+        <subtask>Sort photos by timestamp (chronological order, handle null timestamps at end)</subtask>
+        <subtask>Assign sequential index_position values starting from 0</subtask>
+        <subtask>Map PhotoMetadata to photo_items table structure</subtask>
+        <subtask>Store EXIF data in exif_data JSONB field (full metadata object)</subtask>
+        <subtask>Store file_path with full path from PhotoMetadata</subtask>
+        <subtask>Batch insert photo items using Supabase insert (single query)</subtask>
+        <subtask>Handle duplicate index_position errors (UNIQUE constraint violation - code 23505)</subtask>
+        <subtask>Detect duplicate import: "This inspection already has photo items. Delete existing items before re-importing."</subtask>
+        <subtask>Add structured logging: console.log('[Import] Processing photos:', {...})</subtask>
+        <subtask>Return ActionResult with count of imported photos</subtask>
+        <subtask>Return ActionResult with error for DB errors</subtask>
+      </subtasks>
+    </task>
+
+    <task id="TASK4" acs="AC1,AC2,AC6,AC8,AC10">
+      <title>Create Photo Importer Component</title>
+      <subtasks>
+        <subtask>Create src/components/import/PhotoImporter.tsx (PascalCase file name)</subtask>
+        <subtask>Add "Select Photo Directory" button using File System Access API</subtask>
+        <subtask>Call selectPhotoDirectory() on button click</subtask>
+        <subtask>Display loading state during directory scan and EXIF extraction</subtask>
+        <subtask>Show directory name and photo count after selection</subtask>
+        <subtask>Filter and display supported file types (JPG, JPEG, PNG)</subtask>
+        <subtask>Show list of selected photos with file names</subtask>
+        <subtask>Extract metadata for all photos using extractPhotoMetadata()</subtask>
+        <subtask>Integrate InspectionSelector component from Story 1.3</subtask>
+        <subtask>Add "Import Photos" button (disabled until directory and inspection selected)</subtask>
+        <subtask>Call importPhotos(inspectionId, photoMetadata[]) Server Action</subtask>
+        <subtask>Display loading spinner during import</subtask>
+        <subtask>Show success message with count of imported photos (use Sonner toast)</subtask>
+        <subtask>Show error message for failures (File System API errors, DB errors)</subtask>
+        <subtask>Handle File System Access API not supported with clear message</subtask>
+        <subtask>Clear selection after successful import</subtask>
+        <subtask>Use ShadCN Button and Card components</subtask>
+      </subtasks>
+    </task>
+
+    <task id="TASK5" acs="AC1,AC2,AC8">
+      <title>Integrate Photo Import into Import Page</title>
+      <subtasks>
+        <subtask>Update src/app/import/page.tsx to include photo import option</subtask>
+        <subtask>Add tabs or sections: "Transcript Import" and "Photo Import"</subtask>
+        <subtask>Render PhotoImporter component in photo import section</subtask>
+        <subtask>Add page title: "Import Data"</subtask>
+        <subtask>Ensure consistent layout with transcript import</subtask>
+        <subtask>Add help text explaining File System Access API and file path storage</subtask>
+        <subtask>Ensure page is client component (use 'use client' directive)</subtask>
+      </subtasks>
+    </task>
+
+    <task id="TASK6" acs="AC1,AC2,AC3,AC4,AC5,AC6,AC7,AC8,AC9,AC10">
+      <title>Test Photo Import Workflow</title>
+      <subtasks>
+        <subtask>Test File System Access API: select directory, verify permission request</subtask>
+        <subtask>Test directory scanning: verify supported file types detected (JPG, JPEG, PNG)</subtask>
+        <subtask>Test EXIF extraction: import photos with EXIF data, verify metadata extracted</subtask>
+        <subtask>Test EXIF timestamp: verify DateTimeOriginal or CreateDate used</subtask>
+        <subtask>Test GPS extraction: import photo with GPS, verify coordinates stored</subtask>
+        <subtask>Test device extraction: verify Make + Model stored</subtask>
+        <subtask>Test missing EXIF: import photo without EXIF, verify file modification time used</subtask>
+        <subtask>Test file path storage: verify full file paths stored correctly in database</subtask>
+        <subtask>Test chronological ordering: verify index_position assigned by timestamp</subtask>
+        <subtask>Test duplicate import: attempt to import photos to same inspection twice, verify error message</subtask>
+        <subtask>Test inspection selection: select existing inspection, verify ID captured</subtask>
+        <subtask>Test inspection creation: create new inspection, verify created in DB</subtask>
+        <subtask>Test import: import photos, verify photo_items created in database</subtask>
+        <subtask>Test JSONB storage: verify exif_data field contains full metadata object</subtask>
+        <subtask>Test error handling: deny File System Access API permission, verify error message</subtask>
+        <subtask>Test browser compatibility: verify File System Access API supported or fallback shown</subtask>
+        <subtask>Verify success/error feedback displayed in UI (toast notifications)</subtask>
+      </subtasks>
+    </task>
+  </task-breakdown>
+
+  <!-- ========================================================================= -->
+  <!-- ARCHITECTURE PATTERNS -->
+  <!-- ========================================================================= -->
+
+  <architecture-patterns>
+    <pattern name="File System Access API">
+      <description>
+        TimelineMerge uses the File System Access API to allow users to select directories of photos without uploading files.
+        Files remain in their original location and only file path references are stored in the database.
+      </description>
+
+      <implementation>
+        <![CDATA[
+// File System Access API pattern
+async function selectPhotoDirectory(): Promise<PhotoFile[]> {
+  try {
+    // Request directory picker
+    const dirHandle = await window.showDirectoryPicker({
+      mode: 'read',
+    });
+
+    const photoFiles: PhotoFile[] = [];
+
+    // Recursively iterate through directory
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') {
+        const file = await entry.getFile();
+
+        // Filter for supported image types
+        const supportedTypes = ['image/jpeg', 'image/png'];
+        if (!supportedTypes.includes(file.type)) continue;
+
+        photoFiles.push({
+          file,
+          relativePath: file.webkitRelativePath || file.name,
+        });
+      }
+    }
+
+    return photoFiles;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      // User cancelled directory picker
+      return [];
+    }
+    throw error;
+  }
+}
+        ]]>
+      </implementation>
+
+      <key-requirements>
+        <requirement>Files remain in original location (no upload to server)</requirement>
+        <requirement>Store file path reference in database</requirement>
+        <requirement>File System Access API provides native OS directory picker</requirement>
+        <requirement>Handle permission errors and browser compatibility</requirement>
+        <requirement>Fallback: input[type=file] with webkitdirectory attribute for unsupported browsers</requirement>
+      </key-requirements>
+
+      <browser-compatibility>
+        <supported>Chrome 86+, Edge 86+, Opera 72+</supported>
+        <not-supported>Firefox, Safari (as of January 2025)</not-supported>
+        <detection>
+          <![CDATA[
+if (!('showDirectoryPicker' in window)) {
+  // File System Access API not supported
+  // Show error message or fallback UI
+}
+          ]]>
+        </detection>
+      </browser-compatibility>
+    </pattern>
+
+    <pattern name="Server Actions Pattern">
+      <description>
+        Photo import Server Action follows established pattern from Stories 1.2 and 1.3.
+        All Server Actions return ActionResult&lt;T&gt; and never throw errors to the client.
+      </description>
+
+      <implementation>
+        <![CDATA[
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult } from '@/types/database';
+import { PhotoMetadata } from '@/lib/import/types';
+
+export async function importPhotos(
+  inspectionId: string,
+  photos: PhotoMetadata[]
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    // Validate input
+    if (!inspectionId) {
+      return { success: false, error: 'Inspection ID is required' };
+    }
+    if (!photos || photos.length === 0) {
+      return { success: false, error: 'No photos provided' };
+    }
+
+    // Sort by timestamp (chronological, nulls last)
+    const sortedPhotos = photos.sort((a, b) => {
+      if (!a.timestamp) return 1;
+      if (!b.timestamp) return -1;
+      return a.timestamp.getTime() - b.timestamp.getTime();
+    });
+
+    // Batch insert items
+    const supabase = await createClient();
+    const itemsToInsert = sortedPhotos.map((photo, index) => ({
+      inspection_id: inspectionId,
+      index_position: index,
+      timestamp: photo.timestamp,
+      file_path: photo.filePath,
+      caption: null,
+      exif_data: {
+        device: photo.device,
+        gps: photo.gps,
+        fileName: photo.fileName,
+        fileSize: photo.fileSize,
+      },
+    }));
+
+    const { data, error } = await supabase
+      .from('photo_items')
+      .insert(itemsToInsert)
+      .select();
+
+    if (error) {
+      console.error('[Import] Failed to insert photo items:', {
+        inspectionId,
+        count: itemsToInsert.length,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'This inspection already has photo items. Delete existing items before re-importing.'
+        };
+      }
+
+      return { success: false, error: 'Failed to import photos' };
+    }
+
+    console.log('[Import] Successfully imported photos:', {
+      inspectionId,
+      count: data.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true, data: { count: data.length } };
+  } catch (error) {
+    console.error('[Import] Unexpected error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+        ]]>
+      </implementation>
+
+      <critical-requirements>
+        <requirement>NEVER throw errors to client - always return ActionResult&lt;T&gt;</requirement>
+        <requirement>ALWAYS validate input before operations</requirement>
+        <requirement>ALWAYS use structured logging with [Import] prefix</requirement>
+        <requirement>ALWAYS handle UNIQUE constraint violations (code 23505) with clear duplicate import message</requirement>
+        <requirement>Use batch insert for multiple items (single query, not loop)</requirement>
+        <requirement>Store EXIF data in JSONB field for flexibility</requirement>
+        <requirement>Handle null timestamps gracefully (sort nulls last)</requirement>
+      </critical-requirements>
+    </pattern>
+
+    <pattern name="EXIF Metadata Extraction">
+      <description>
+        Use exifr library for client-side EXIF metadata extraction from photo files.
+        Recommended for its lightweight size, browser compatibility, and promise-based API.
+      </description>
+
+      <library>
+        <name>exifr</name>
+        <install>npm install exifr</install>
+        <size>50KB minified</size>
+        <supports>JPG, PNG, TIFF, HEIC</supports>
+      </library>
+
+      <implementation>
+        <![CDATA[
+import exifr from 'exifr';
+
+async function extractPhotoMetadata(file: File): Promise<PhotoMetadata> {
+  try {
+    // Extract specific EXIF tags
+    const exif = await exifr.parse(file, {
+      // Tags to extract
+      pick: [
+        'DateTimeOriginal',
+        'CreateDate',
+        'Make',
+        'Model',
+        'GPSLatitude',
+        'GPSLongitude',
+      ],
+    });
+
+    // Extract timestamp (prefer DateTimeOriginal, fallback to CreateDate, then file.lastModified)
+    const timestamp = exif?.DateTimeOriginal || exif?.CreateDate || new Date(file.lastModified);
+
+    // Extract device (combine Make + Model)
+    const device = [exif?.Make, exif?.Model].filter(Boolean).join(' ') || null;
+
+    // Extract GPS coordinates
+    const gps = (exif?.GPSLatitude && exif?.GPSLongitude)
+      ? { lat: exif.GPSLatitude, lon: exif.GPSLongitude }
+      : null;
+
+    return {
+      timestamp,
+      device,
+      gps,
+      filePath: file.webkitRelativePath || file.name,
+      fileName: file.name,
+      fileSize: file.size,
+    };
+  } catch (error) {
+    // EXIF parsing failed - use file metadata fallback
+    console.warn('[Import] Failed to extract EXIF data:', {
+      fileName: file.name,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return {
+      timestamp: new Date(file.lastModified),
+      device: null,
+      gps: null,
+      filePath: file.webkitRelativePath || file.name,
+      fileName: file.name,
+      fileSize: file.size,
+    };
+  }
+}
+        ]]>
+      </implementation>
+
+      <exif-tags>
+        <tag name="DateTimeOriginal">Original capture timestamp (preferred)</tag>
+        <tag name="CreateDate">File creation timestamp (fallback)</tag>
+        <tag name="Make">Camera manufacturer (e.g., "Canon")</tag>
+        <tag name="Model">Camera model (e.g., "EOS 5D Mark IV")</tag>
+        <tag name="GPSLatitude">GPS latitude (decimal degrees)</tag>
+        <tag name="GPSLongitude">GPS longitude (decimal degrees)</tag>
+      </exif-tags>
+
+      <fallback-strategy>
+        <rule>If EXIF parsing fails: use file.lastModified as timestamp</rule>
+        <rule>If no GPS data: store null</rule>
+        <rule>If no device info: store null</rule>
+        <rule>Always provide timestamp (never null)</rule>
+      </fallback-strategy>
+    </pattern>
+
+    <pattern name="Import Workflow">
+      <description>
+        Building on the pattern established in Story 1.3, photo import follows a structured workflow.
+      </description>
+
+      <workflow>
+        <step number="1">
+          <title>User Action (UI Component)</title>
+          <actions>
+            <action>User selects/creates inspection (InspectionSelector)</action>
+            <action>User clicks "Select Photo Directory"</action>
+            <action>File System Access API shows directory picker</action>
+            <action>Component filters for supported file types (JPG, JPEG, PNG)</action>
+            <action>Component extracts EXIF metadata from each photo</action>
+          </actions>
+        </step>
+
+        <step number="2">
+          <title>Metadata Extraction (Client-Side)</title>
+          <actions>
+            <action>For each photo file: extract EXIF data using exifr library</action>
+            <action>Extract timestamp (DateTimeOriginal or CreateDate)</action>
+            <action>Extract device info (Make + Model)</action>
+            <action>Extract GPS coordinates (GPSLatitude + GPSLongitude)</action>
+            <action>Fallback to file.lastModified if no EXIF timestamp</action>
+            <action>Store full file path</action>
+          </actions>
+        </step>
+
+        <step number="3">
+          <title>Server Action (src/actions/import.ts)</title>
+          <actions>
+            <action>Receives array of PhotoMetadata objects</action>
+            <action>Validates data</action>
+            <action>Sorts by timestamp (chronological)</action>
+            <action>Assigns index_position values</action>
+          </actions>
+        </step>
+
+        <step number="4">
+          <title>Database Insert (Server Action continues)</title>
+          <actions>
+            <action>Maps metadata to photo_items table</action>
+            <action>Stores EXIF data in JSONB field</action>
+            <action>Batch inserts photo items</action>
+            <action>Returns result to UI</action>
+          </actions>
+        </step>
+
+        <step number="5">
+          <title>Feedback (UI Component)</title>
+          <actions>
+            <action>Displays success/error message</action>
+            <action>Shows count of imported photos</action>
+            <action>Resets form on success</action>
+          </actions>
+        </step>
+      </workflow>
+
+      <key-requirements>
+        <requirement>EXIF extraction happens client-side (browser)</requirement>
+        <requirement>Metadata passed to Server Action as structured data</requirement>
+        <requirement>Server Action handles all DB operations</requirement>
+        <requirement>All errors return ActionResult (never throw to client)</requirement>
+        <requirement>Use batch insert for performance</requirement>
+        <requirement>Timestamps stored as TIMESTAMPTZ in database</requirement>
+      </key-requirements>
+    </pattern>
+
+    <pattern name="Component Reuse">
+      <description>
+        Reuse InspectionSelector component from Story 1.3 for consistent inspection selection/creation experience.
+      </description>
+
+      <usage>
+        <![CDATA[
+import { InspectionSelector } from '@/components/import/InspectionSelector';
+
+export function PhotoImporter() {
+  const [inspectionId, setInspectionId] = useState<string>('');
+
+  return (
+    <Card>
+      <CardContent>
+        <InspectionSelector onInspectionSelected={setInspectionId} />
+
+        {/* Directory selection and import UI */}
+      </CardContent>
+    </Card>
+  );
+}
+        ]]>
+      </usage>
+    </pattern>
+  </architecture-patterns>
+
+  <!-- ========================================================================= -->
+  <!-- DATABASE SCHEMA -->
+  <!-- ========================================================================= -->
+
+  <database-schema>
+    <table name="photo_items">
+      <description>Photo entries with file paths and EXIF metadata</description>
+
+      <schema>
+        <![CDATA[
+CREATE TABLE photo_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  index_position INTEGER NOT NULL,
+  timestamp TIMESTAMPTZ,
+  file_path TEXT NOT NULL,
+  caption TEXT,
+  exif_data JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (inspection_id, index_position)
+);
+
+CREATE INDEX idx_photo_items_inspection ON photo_items(inspection_id);
+CREATE INDEX idx_photo_items_position ON photo_items(inspection_id, index_position);
+        ]]>
+      </schema>
+
+      <field-mapping>
+        <field name="id">Auto-generated UUID</field>
+        <field name="inspection_id">Link to selected inspection</field>
+        <field name="index_position">Sequential integer (0, 1, 2, ...) based on chronological timestamp order</field>
+        <field name="timestamp">EXIF DateTimeOriginal or file modification time</field>
+        <field name="file_path">Full file path reference (e.g., "C:/Inspections/Project1/photo1.jpg")</field>
+        <field name="caption">User-added caption (null on import, editable in future story)</field>
+        <field name="exif_data">JSONB object containing all EXIF metadata:
+          {
+            "device": "Canon EOS 5D Mark IV",
+            "gps": { "lat": 40.7128, "lon": -74.0060 },
+            "fileName": "IMG_1234.JPG",
+            "fileSize": 2456789
+          }
+        </field>
+      </field-mapping>
+
+      <jsonb-rationale>
+        <reason>Flexible schema (different photos have different EXIF tags)</reason>
+        <reason>Queryable (can search by GPS, device, etc. in future stories)</reason>
+        <reason>Preserves all metadata without schema changes</reason>
+        <reason>Efficient storage (compressed JSON)</reason>
+      </jsonb-rationale>
+
+      <unique-constraint>
+        <constraint>Same as transcript_items: (inspection_id, index_position)</constraint>
+        <purpose>Prevents duplicate imports</purpose>
+        <error-code>23505 on violation</error-code>
+        <handling>Handled in Server Action with user-friendly message</handling>
+      </unique-constraint>
+    </table>
+  </database-schema>
+
+  <!-- ========================================================================= -->
+  <!-- EXISTING CODE REFERENCE -->
+  <!-- ========================================================================= -->
+
+  <existing-code>
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\lib\supabase\client.ts">
+      <description>Supabase client for client-side operations</description>
+      <code>
+        <![CDATA[
+import { createBrowserClient } from '@supabase/ssr';
+
+/**
+ * Creates a Supabase client for client-side operations (React components).
+ * Used for browser-based operations and future real-time subscriptions.
+ *
+ * @returns Supabase client instance configured for browser environment
+ */
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+        ]]>
+      </code>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\lib\supabase\server.ts">
+      <description>Supabase client for server-side operations (Server Actions)</description>
+      <code>
+        <![CDATA[
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+
+/**
+ * Creates a Supabase client for server-side operations (Server Actions, API routes).
+ * Handles cookies for authentication and server-side rendering.
+ *
+ * @returns Supabase client instance configured for server environment
+ */
+export async function createClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  );
+}
+        ]]>
+      </code>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\types\database.ts">
+      <description>Database type definitions (partial - PhotoItem and ActionResult)</description>
+      <code>
+        <![CDATA[
+/**
+ * Photo item - Photo entry with file path and EXIF data
+ */
+export interface PhotoItem {
+  id: string;
+  inspection_id: string;
+  index_position: number;
+  timestamp: string | null;
+  file_path: string;
+  caption: string | null;
+  exif_data: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Standard result type for all Server Actions
+ * Never throw errors to client - always return ActionResult
+ */
+export type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+/**
+ * Input data for creating a photo item
+ */
+export interface CreatePhotoItemInput {
+  inspectionId: string;
+  indexPosition: number;
+  timestamp?: string;
+  filePath: string;
+  caption?: string;
+  exifData?: Record<string, unknown>;
+}
+        ]]>
+      </code>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\actions\projects.ts">
+      <description>Server Actions for Project and Inspection CRUD (partial - key functions)</description>
+      <code>
+        <![CDATA[
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult, Inspection, CreateInspectionInput } from '@/types/database';
+
+/**
+ * Create a new inspection within a project
+ */
+export async function createInspection(
+  input: CreateInspectionInput
+): Promise<ActionResult<Inspection>> {
+  try {
+    const supabase = await createClient();
+
+    // Validate input
+    if (!input.projectId || input.projectId.trim() === '') {
+      return { success: false, error: 'Project ID is required' };
+    }
+    if (!input.name || input.name.trim() === '') {
+      return { success: false, error: 'Inspection name is required' };
+    }
+
+    // Perform operation
+    const { data, error } = await supabase
+      .from('inspections')
+      .insert({
+        project_id: input.projectId,
+        name: input.name.trim(),
+        inspection_date: input.inspectionDate || null,
+        site_type_schema: input.siteTypeSchema || null,
+      })
+      .select()
+      .single();
+
+    // Handle errors
+    if (error) {
+      console.error('[DB] Failed to create inspection:', {
+        projectId: input.projectId,
+        name: input.name,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Check for foreign key violation (project doesn't exist)
+      if (error.code === '23503') {
+        return { success: false, error: 'Project not found' };
+      }
+
+      return { success: false, error: 'Failed to create inspection' };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[DB] Unexpected error creating inspection:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+/**
+ * Get all inspections for a project
+ */
+export async function listInspectionsByProject(
+  projectId: string
+): Promise<ActionResult<Inspection[]>> {
+  try {
+    const supabase = await createClient();
+
+    // Validate input
+    if (!projectId || projectId.trim() === '') {
+      return { success: false, error: 'Project ID is required' };
+    }
+
+    // Perform operation
+    const { data, error } = await supabase
+      .from('inspections')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    // Handle errors
+    if (error) {
+      console.error('[DB] Failed to list inspections:', {
+        projectId,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+      return { success: false, error: 'Failed to retrieve inspections' };
+    }
+
+    return { success: true, data: data || [] };
+  } catch (error) {
+    console.error('[DB] Unexpected error listing inspections:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+        ]]>
+      </code>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\actions\import.ts">
+      <description>Server Actions for Transcript Import (shows import pattern)</description>
+      <code>
+        <![CDATA[
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult } from '@/types/database';
+import { parseOtterTranscript } from '@/lib/import/transcript-parser';
+
+/**
+ * Import Otter.ai transcript file
+ *
+ * Parses the transcript content, extracts segments, and stores them as transcript items.
+ * File reading happens on the client side using file.text(), content is passed as string.
+ */
+export async function importTranscript(
+  inspectionId: string,
+  fileContent: string,
+  fileName: string
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    // Validate input
+    if (!inspectionId || inspectionId.trim() === '') {
+      return { success: false, error: 'Inspection ID is required' };
+    }
+    if (!fileContent || fileContent.trim().length === 0) {
+      return { success: false, error: 'File content is empty' };
+    }
+    if (!fileName || fileName.trim() === '') {
+      return { success: false, error: 'File name is required' };
+    }
+
+    console.log('[Import] Starting transcript import:', {
+      inspectionId,
+      fileName,
+      contentLength: fileContent.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Parse transcript
+    let parsed;
+    try {
+      parsed = parseOtterTranscript(fileContent, fileName);
+    } catch (parseError) {
+      console.error('[Import] Failed to parse transcript:', {
+        inspectionId,
+        fileName,
+        error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+        timestamp: new Date().toISOString(),
+      });
+
+      return {
+        success: false,
+        error: parseError instanceof Error ? parseError.message : 'Failed to parse transcript file',
+      };
+    }
+
+    if (!parsed.segments || parsed.segments.length === 0) {
+      return { success: false, error: 'No transcript segments found in file' };
+    }
+
+    // Sort segments by timestamp (chronological order)
+    const sortedSegments = parsed.segments.sort((a, b) =>
+      a.timestamp.localeCompare(b.timestamp)
+    );
+
+    // Prepare items for batch insert
+    const supabase = await createClient();
+    const itemsToInsert = sortedSegments.map((segment, index) => ({
+      inspection_id: inspectionId,
+      index_position: index,
+      timestamp: null,
+      speaker_label: segment.speaker,
+      text_content: segment.text,
+    }));
+
+    // Batch insert all transcript items
+    const { data, error } = await supabase
+      .from('transcript_items')
+      .insert(itemsToInsert)
+      .select();
+
+    if (error) {
+      console.error('[Import] Failed to insert transcript items:', {
+        inspectionId,
+        fileName,
+        count: itemsToInsert.length,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Handle UNIQUE constraint violation (duplicate import)
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'This inspection already has transcript items. Delete existing items before re-importing.',
+        };
+      }
+
+      // Handle foreign key violation (inspection doesn't exist)
+      if (error.code === '23503') {
+        return { success: false, error: 'Inspection not found' };
+      }
+
+      return { success: false, error: 'Failed to import transcript' };
+    }
+
+    console.log('[Import] Successfully imported transcript:', {
+      inspectionId,
+      fileName,
+      count: data.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true, data: { count: data.length } };
+  } catch (error) {
+    console.error('[Import] Unexpected error:', {
+      inspectionId,
+      fileName,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return {
+      success: false,
+      error: 'An unexpected error occurred during import',
+    };
+  }
+}
+        ]]>
+      </code>
+      <note>
+        This file should be EXTENDED with importPhotos() function. Pattern is similar:
+        - Validate input
+        - Sort items (by timestamp for photos)
+        - Assign index_position
+        - Batch insert
+        - Handle UNIQUE constraint (23505) for duplicate import detection
+        - Return ActionResult with count
+      </note>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\components\import\InspectionSelector.tsx">
+      <description>Reusable component for inspection selection/creation (Story 1.3)</description>
+      <usage>
+        This component should be REUSED in PhotoImporter component.
+        It handles:
+        - Loading projects from database
+        - Project selection dropdown
+        - Loading inspections for selected project
+        - Inspection selection dropdown
+        - "Create New Inspection" option
+        - Inline inspection creation form
+        - Callback when inspection is selected: onInspectionSelected(inspectionId: string)
+      </usage>
+      <code>
+        <![CDATA[
+'use client';
+
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import {
+  createInspection,
+  listInspectionsByProject,
+  listProjects,
+} from '@/actions/projects';
+import { Inspection, Project } from '@/types/database';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface InspectionSelectorProps {
+  onInspectionSelected: (inspectionId: string) => void;
+}
+
+export function InspectionSelector({
+  onInspectionSelected,
+}: InspectionSelectorProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [inspections, setInspections] = useState<Inspection[]>([]);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string>('');
+  const [showCreateInspection, setShowCreateInspection] = useState(false);
+  const [newInspectionName, setNewInspectionName] = useState('');
+  const [isCreatingInspection, setIsCreatingInspection] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingInspections, setIsLoadingInspections] = useState(false);
+
+  // Load projects on mount
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  // Load inspections when project is selected
+  useEffect(() => {
+    if (selectedProjectId) {
+      loadInspections(selectedProjectId);
+    } else {
+      setInspections([]);
+      setSelectedInspectionId('');
+      setShowCreateInspection(false);
+    }
+  }, [selectedProjectId]);
+
+  const loadProjects = async () => {
+    setIsLoadingProjects(true);
+    const result = await listProjects();
+
+    if (result.success) {
+      setProjects(result.data);
+      // Auto-select first project if available
+      if (result.data.length > 0) {
+        setSelectedProjectId(result.data[0].id);
+      }
+    } else {
+      toast.error('Failed to load projects');
+    }
+    setIsLoadingProjects(false);
+  };
+
+  const loadInspections = async (projectId: string) => {
+    setIsLoadingInspections(true);
+    setShowCreateInspection(false);
+    setSelectedInspectionId('');
+
+    const result = await listInspectionsByProject(projectId);
+
+    if (result.success) {
+      setInspections(result.data);
+    } else {
+      toast.error('Failed to load inspections');
+      setInspections([]);
+    }
+    setIsLoadingInspections(false);
+  };
+
+  const handleInspectionChange = (value: string) => {
+    if (value === '__create_new__') {
+      setShowCreateInspection(true);
+      setSelectedInspectionId('');
+    } else {
+      setShowCreateInspection(false);
+      setSelectedInspectionId(value);
+      onInspectionSelected(value);
+    }
+  };
+
+  const handleCreateInspection = async () => {
+    if (!newInspectionName.trim()) {
+      toast.error('Inspection name is required');
+      return;
+    }
+
+    if (!selectedProjectId) {
+      toast.error('Project must be selected');
+      return;
+    }
+
+    setIsCreatingInspection(true);
+
+    const result = await createInspection({
+      projectId: selectedProjectId,
+      name: newInspectionName.trim(),
+    });
+
+    if (result.success) {
+      toast.success('Inspection created successfully');
+      setSelectedInspectionId(result.data.id);
+      onInspectionSelected(result.data.id);
+      setNewInspectionName('');
+      setShowCreateInspection(false);
+      // Reload inspections to include the new one
+      await loadInspections(selectedProjectId);
+    } else {
+      toast.error(result.error);
+    }
+
+    setIsCreatingInspection(false);
+  };
+
+  // ... component JSX (Card with project/inspection selection)
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Select Inspection</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Project and Inspection selection UI */}
+      </CardContent>
+    </Card>
+  );
+}
+        ]]>
+      </code>
+    </file>
+
+    <file path="C:\SourceCode\TimelineMerge\timelinemerge\src\lib\import\types.ts">
+      <description>Import types for transcript parsing (should be EXTENDED with photo types)</description>
+      <code>
+        <![CDATA[
+/**
+ * TypeScript types for Otter.ai transcript parsing
+ */
+
+export interface TranscriptSegment {
+  timestamp: string;
+  speaker: string;
+  text: string;
+}
+
+export interface ParsedTranscript {
+  segments: TranscriptSegment[];
+  metadata?: {
+    totalSegments: number;
+    format: OtterTranscriptFormat;
+    fileName: string;
+  };
+}
+
+export type OtterTranscriptFormat = 'txt' | 'json';
+
+export interface OtterJsonSegment {
+  speaker: string;
+  start_time: number;
+  end_time?: number;
+  text: string;
+}
+
+export interface OtterJsonTranscript {
+  segments: OtterJsonSegment[];
+}
+        ]]>
+      </code>
+      <note>
+        This file should be EXTENDED with photo-specific types:
+        - PhotoMetadata interface
+        - PhotoFile interface
+        These types will be used in photo-metadata.ts, directory-picker.ts, and PhotoImporter.tsx
+      </note>
+    </file>
+  </existing-code>
+
+  <!-- ========================================================================= -->
+  <!-- PROJECT STRUCTURE -->
+  <!-- ========================================================================= -->
+
+  <project-structure>
+    <description>
+      File structure for Story 1.4 implementation, following established patterns from Stories 1.2 and 1.3.
+    </description>
+
+    <files>
+      <file action="MODIFY" path="timelinemerge/src/lib/import/types.ts">
+        <description>Add photo-specific types (PhotoMetadata, PhotoFile)</description>
+        <type>TypeScript types</type>
+      </file>
+
+      <file action="CREATE" path="timelinemerge/src/lib/import/photo-metadata.ts">
+        <description>EXIF extraction and metadata parsing functions</description>
+        <type>Library module (kebab-case)</type>
+      </file>
+
+      <file action="CREATE" path="timelinemerge/src/lib/import/directory-picker.ts">
+        <description>File System Access API directory picker helper</description>
+        <type>Library module (kebab-case)</type>
+      </file>
+
+      <file action="MODIFY" path="timelinemerge/src/actions/import.ts">
+        <description>Add importPhotos() Server Action</description>
+        <type>Server Actions</type>
+      </file>
+
+      <file action="CREATE" path="timelinemerge/src/components/import/PhotoImporter.tsx">
+        <description>Photo import UI component</description>
+        <type>React component (PascalCase)</type>
+      </file>
+
+      <file action="MODIFY" path="timelinemerge/src/app/import/page.tsx">
+        <description>Add photo import section to import page</description>
+        <type>Next.js page</type>
+      </file>
+    </files>
+
+    <naming-conventions>
+      <convention type="library">kebab-case.ts (photo-metadata.ts, directory-picker.ts)</convention>
+      <convention type="component-file">PascalCase.tsx (PhotoImporter.tsx)</convention>
+      <convention type="component-export">PascalCase (PhotoImporter)</convention>
+      <convention type="function">camelCase (extractPhotoMetadata, selectPhotoDirectory, importPhotos)</convention>
+      <convention type="type-interface">PascalCase (PhotoMetadata, PhotoFile)</convention>
+      <convention type="directory">kebab-case (import/, components/)</convention>
+    </naming-conventions>
+  </project-structure>
+
+  <!-- ========================================================================= -->
+  <!-- TESTING GUIDANCE -->
+  <!-- ========================================================================= -->
+
+  <testing-guidance>
+    <approach>
+      Manual verification via UI and Supabase Table Editor.
+      No automated tests required for MVP (Story 1.4).
+    </approach>
+
+    <test-data>
+      <requirement>Create test directory with sample photos:
+        - Photos with full EXIF data (timestamp, device, GPS)
+        - Photos with partial EXIF data (timestamp only)
+        - Photos without EXIF data (test fallback to file modification time)
+        - Mix of JPG and PNG formats
+        - Various file sizes
+        - Subdirectories (test recursive scanning if implemented)
+      </requirement>
+      <requirement>Test with 5-10 photos initially</requirement>
+      <requirement>Test with larger set (50+ photos) for performance</requirement>
+    </test-data>
+
+    <test-scenarios>
+      <scenario id="TS1">
+        <title>Happy path</title>
+        <steps>Select directory with 10 photos, verify all imported with correct metadata</steps>
+      </scenario>
+
+      <scenario id="TS2">
+        <title>Missing EXIF</title>
+        <steps>Import photos without EXIF, verify file modification time used</steps>
+      </scenario>
+
+      <scenario id="TS3">
+        <title>Duplicate import</title>
+        <steps>Import same photos twice, verify error message</steps>
+      </scenario>
+
+      <scenario id="TS4">
+        <title>Permission denied</title>
+        <steps>Deny File System Access API permission, verify error handling</steps>
+      </scenario>
+
+      <scenario id="TS5">
+        <title>Unsupported browser</title>
+        <steps>Test in Firefox/Safari, verify fallback or error message</steps>
+      </scenario>
+
+      <scenario id="TS6">
+        <title>Inspection selection</title>
+        <steps>Create new inspection and import photos, verify linkage</steps>
+      </scenario>
+
+      <scenario id="TS7">
+        <title>Mixed file types</title>
+        <steps>Directory with JPG, PNG, PDF, DOCX - verify only images imported</steps>
+      </scenario>
+
+      <scenario id="TS8">
+        <title>Chronological ordering</title>
+        <steps>Import photos with various timestamps, verify index_position order</steps>
+      </scenario>
+
+      <scenario id="TS9">
+        <title>GPS data</title>
+        <steps>Import photo with GPS, verify coordinates stored in exif_data JSONB</steps>
+      </scenario>
+
+      <scenario id="TS10">
+        <title>Large directory</title>
+        <steps>Import 50+ photos, verify performance and success</steps>
+      </scenario>
+    </test-scenarios>
+
+    <verification>
+      <check>All photos imported with correct index_position</check>
+      <check>Timestamps extracted from EXIF or file metadata</check>
+      <check>GPS coordinates stored in exif_data JSONB</check>
+      <check>Device info stored in exif_data JSONB</check>
+      <check>File paths stored correctly</check>
+      <check>Duplicate import error message displayed</check>
+      <check>Success toast shows correct count</check>
+      <check>Supabase Table Editor shows correct photo_items records</check>
+    </verification>
+  </testing-guidance>
+
+  <!-- ========================================================================= -->
+  <!-- PERFORMANCE CONSIDERATIONS -->
+  <!-- ========================================================================= -->
+
+  <performance-considerations>
+    <consideration name="EXIF Extraction">
+      <strategy>Use exifr's `pick` option to extract only needed tags (faster)</strategy>
+      <strategy>Process photos in parallel: Promise.all(photos.map(extractPhotoMetadata))</strategy>
+      <metrics>
+        <metric>Expected extraction time: 10-50ms per photo</metric>
+        <metric>For 50 photos: ~1-2 seconds total</metric>
+      </metrics>
+      <recommendation>Show progress indicator for large sets (50+ photos)</recommendation>
+    </consideration>
+
+    <consideration name="Batch Insert">
+      <good-pattern>
+        <![CDATA[
+// GOOD: Single query for all items
+const { data, error } = await supabase
+  .from('photo_items')
+  .insert(itemsToInsert)
+  .select();
+        ]]>
+      </good-pattern>
+      <bad-pattern>
+        <![CDATA[
+// BAD: Loop with individual inserts
+for (const item of items) {
+  await supabase.from('photo_items').insert(item); // Slow!
+}
+        ]]>
+      </bad-pattern>
+    </consideration>
+
+    <consideration name="File System Access API">
+      <metrics>
+        <metric>Directory iteration is fast (native OS)</metric>
+        <metric>File filtering happens in memory (fast)</metric>
+        <metric>Expected scan time: &lt;1 second for 100 photos</metric>
+      </metrics>
+    </consideration>
+
+    <consideration name="Database">
+      <optimization>JSONB storage is efficient (compressed)</optimization>
+      <optimization>Indexes on inspection_id and index_position provide fast queries</optimization>
+      <optimization>UNIQUE constraint check is fast (indexed)</optimization>
+    </consideration>
+  </performance-considerations>
+
+  <!-- ========================================================================= -->
+  <!-- BROWSER COMPATIBILITY -->
+  <!-- ========================================================================= -->
+
+  <browser-compatibility>
+    <supported>
+      <browser name="Chrome" version="86+" since="October 2020" />
+      <browser name="Edge" version="86+" since="October 2020" />
+      <browser name="Opera" version="72+" since="November 2020" />
+    </supported>
+
+    <not-supported>
+      <browser name="Firefox">No support planned</browser>
+      <browser name="Safari">No support planned</browser>
+    </not-supported>
+
+    <detection>
+      <![CDATA[
+if (!('showDirectoryPicker' in window)) {
+  // File System Access API not supported
+  // Show error message or fallback UI
+}
+      ]]>
+    </detection>
+
+    <fallback-options>
+      <option priority="1">Display error message: "This feature requires Chrome, Edge, or Opera browser"</option>
+      <option priority="2">Traditional file input: Use &lt;input type="file" webkitdirectory /&gt; (less reliable, browser-dependent)</option>
+      <option priority="3">Multiple file selection: Use &lt;input type="file" multiple /&gt; (no directory structure)</option>
+    </fallback-options>
+
+    <recommendation>
+      For MVP: Detect browser support on page load, show clear error message if unsupported.
+      Do NOT implement complex fallback (out of scope for MVP).
+      Document browser requirement in user guide (future story).
+    </recommendation>
+  </browser-compatibility>
+
+  <!-- ========================================================================= -->
+  <!-- SECURITY AND PRIVACY -->
+  <!-- ========================================================================= -->
+
+  <security-privacy>
+    <file-system-access-api>
+      <security-feature>Browser shows native permission prompt (user must explicitly allow)</security-feature>
+      <security-feature>Permission is per-directory, per-session</security-feature>
+      <security-feature>No persistent access (user must re-select directory each import)</security-feature>
+      <security-feature>Files remain in original location (no file upload)</security-feature>
+      <security-feature>File paths stored in database are local to user's machine</security-feature>
+    </file-system-access-api>
+
+    <data-privacy>
+      <consideration>GPS coordinates stored if present in EXIF data</consideration>
+      <consideration>Device info (camera model) stored if present</consideration>
+      <consideration>All EXIF data stored in database (consider privacy implications)</consideration>
+      <consideration>Future story may add option to strip GPS data</consideration>
+    </data-privacy>
+
+    <file-path-security>
+      <note>File paths are local to user's machine</note>
+      <note>Paths not accessible from other machines/users</note>
+      <note>Consider relative paths for portability (future enhancement)</note>
+      <note>Absolute paths work for single-user desktop app (MVP scope)</note>
+    </file-path-security>
+  </security-privacy>
+
+  <!-- ========================================================================= -->
+  <!-- DEVELOPMENT NOTES -->
+  <!-- ========================================================================= -->
+
+  <development-notes>
+    <note priority="critical">
+      NEVER throw errors to client from Server Actions - always return ActionResult&lt;T&gt;
+    </note>
+
+    <note priority="critical">
+      Handle UNIQUE constraint violation (error code 23505) with user-friendly message:
+      "This inspection already has photo items. Delete existing items before re-importing."
+    </note>
+
+    <note priority="high">
+      Use batch insert for all photo items (single Supabase query, not a loop).
+      This is critical for performance with large photo sets.
+    </note>
+
+    <note priority="high">
+      EXIF extraction happens client-side (browser). Only structured metadata is sent to Server Action.
+      Do NOT attempt to send File objects to Server Actions.
+    </note>
+
+    <note priority="medium">
+      Reuse InspectionSelector component from Story 1.3. Do NOT recreate this functionality.
+    </note>
+
+    <note priority="medium">
+      Store full EXIF metadata in exif_data JSONB field for future extensibility.
+      Include device, GPS, fileName, and fileSize at minimum.
+    </note>
+
+    <note priority="medium">
+      Handle null timestamps gracefully. Sort photos with null timestamps to the end of the list.
+    </note>
+
+    <note priority="low">
+      Use structured logging with [Import] prefix for consistency with Story 1.3 patterns.
+    </note>
+
+    <note priority="low">
+      Use Sonner toast notifications for all user feedback (success/error messages).
+    </note>
+  </development-notes>
+
+  <!-- ========================================================================= -->
+  <!-- REFERENCES -->
+  <!-- ========================================================================= -->
+
+  <references>
+    <reference type="story" path="C:\SourceCode\TimelineMerge\docs\stories\story-1.2.md">
+      Database foundation and schema details
+    </reference>
+
+    <reference type="story" path="C:\SourceCode\TimelineMerge\docs\stories\story-1.3.md">
+      Import pattern and InspectionSelector component
+    </reference>
+
+    <reference type="architecture" path="C:\SourceCode\TimelineMerge\docs\architecture.md">
+      File System Access API (ADR-004), Server Actions pattern, Import patterns
+    </reference>
+
+    <reference type="schema" path="C:\SourceCode\TimelineMerge\timelinemerge\supabase\migrations\001_initial_schema.sql">
+      Complete database schema including photo_items table
+    </reference>
+
+    <reference type="external" url="https://www.npmjs.com/package/exifr">
+      exifr library documentation
+    </reference>
+
+    <reference type="external" url="https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API">
+      MDN Web Docs - File System Access API
+    </reference>
+  </references>
+</story-context>

@@ -1,11 +1,16 @@
-import { TranscriptImporter } from '@/components/import/TranscriptImporter';
-import Link from 'next/link';
+'use client';
 
 /**
  * Import Page
  *
- * Page for importing Otter.ai transcript files into inspections.
+ * Page for importing data (transcripts and photos) into inspections.
  */
+
+import { TranscriptImporter } from '@/components/import/TranscriptImporter';
+import { PhotoImporter } from '@/components/import/PhotoImporter';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Link from 'next/link';
+
 export default function ImportPage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-3xl">
@@ -18,15 +23,27 @@ export default function ImportPage() {
           <span>/</span>
           <span>Import</span>
         </div>
-        <h1 className="text-3xl font-bold">Import Transcript</h1>
+        <h1 className="text-3xl font-bold">Import Data</h1>
         <p className="text-muted-foreground mt-2">
-          Upload an Otter.ai transcript file to import spoken observations into
-          your inspection.
+          Import transcripts or photos into your inspection timeline.
         </p>
       </div>
 
-      {/* Import Component */}
-      <TranscriptImporter />
+      {/* Import Tabs */}
+      <Tabs defaultValue="transcript" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="transcript">Transcript Import</TabsTrigger>
+          <TabsTrigger value="photos">Photo Import</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="transcript" className="mt-6">
+          <TranscriptImporter />
+        </TabsContent>
+        
+        <TabsContent value="photos" className="mt-6">
+          <PhotoImporter />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
