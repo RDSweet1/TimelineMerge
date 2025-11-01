@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimelineMerge - Design Direction Mockups</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #475569;
+            --secondary: #64748b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text-primary: #334155;
+            --text-secondary: #94a3b8;
+            --badge-bg: #eff6ff;
+            --badge-text: #3b82f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            line-height: 1.6;
+        }
+
+        .nav-header {
+            background: #0f0f0f;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #3a3a3a;
+            border-color: var(--accent);
+        }
+
+        .nav-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .direction-container {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .direction-container.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .direction-info {
+            background: #0f0f0f;
+            padding: 2rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .direction-info h2 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+        }
+
+        .direction-meta {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        .direction-meta strong {
+            color: #ccc;
+        }
+
+        .mockup-viewport {
+            background: var(--bg);
+            min-height: calc(100vh - 200px);
+            padding: 2rem;
+        }
+
+        /* Shared Timeline Styles */
+        .timeline-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .timeline-header {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .timeline-stats {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .timeline-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .timeline-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-color: var(--accent);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .location-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .location-badge {
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .item-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Courier New', monospace;
+        }
+
+        .item-content {
+            padding: 1rem;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        .item-actions {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.375rem 0.75rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .action-btn:hover {
+            background: var(--bg);
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .photo-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .photo-thumbnail {
+            width: 100%;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .placeholder-zone {
+            height: 48px;
+            border: 2px dashed var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.8125rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .placeholder-zone:hover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.05);
+            color: var(--accent);
+        }
+
+        .drag-handle {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Direction-specific styles */
+
+        /* Direction 1: Spacious Single Column */
+        .d1-item {
+            padding: 1.5rem;
+        }
+
+        .d1-item-header {
+            margin-bottom: 1rem;
+        }
+
+        /* Direction 2: Compact Information Dense */
+        .d2-item {
+            padding: 0.75rem;
+        }
+
+        .d2-item .item-content {
+            font-size: 0.875rem;
+            padding: 0.75rem;
+        }
+
+        /* Direction 3: Photo-Prominent Layout */
+        .d3-photo-large .photo-thumbnail {
+            aspect-ratio: 4/3;
+        }
+
+        /* Direction 4: Split View with Attributes Panel */
+        .d4-split {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 1.5rem;
+        }
+
+        .d4-attributes-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+
+        /* Direction 5: Horizontal Photo Thumbnails */
+        .d5-photo-row {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+
+        .d5-photo-thumb {
+            min-width: 200px;
+            height: 120px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+        }
+
+        /* Direction 6: Card Groups by Location */
+        .d6-location-group {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .d6-group-header {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .d6-group-header::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-header">
+        <h1>🎨 TimelineMerge Design Directions</h1>
+        <div class="nav-controls">
+            <button class="nav-btn active" onclick="showDirection(1)">1. Spacious</button>
+            <button class="nav-btn" onclick="showDirection(2)">2. Dense</button>
+            <button class="nav-btn" onclick="showDirection(3)">3. Photo-Prominent</button>
+            <button class="nav-btn" onclick="showDirection(4)">4. Split Panel</button>
+            <button class="nav-btn" onclick="showDirection(5)">5. Horizontal Photos</button>
+            <button class="nav-btn" onclick="showDirection(6)">6. Grouped by Location</button>
+        </div>
+    </div>
+
+    <!-- Direction 1: Spacious Single Column -->
+    <div id="direction-1" class="direction-container active">
+        <div class="direction-info">
+            <h2>Direction 1: Spacious Single Column</h2>
+            <p>Generous whitespace, large text, clear visual hierarchy. Calm and easy to scan.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Spacious</div>
+                <div><strong>Layout:</strong> Single column, centered</div>
+                <div><strong>Photo Size:</strong> Large thumbnails</div>
+                <div><strong>Best For:</strong> Users who value clarity over information density</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title">Inspection Timeline</div>
+                    <div class="timeline-stats">157 items • 42 photos • 3 hours</div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item d1-item">
+                    <div class="item-header d1-item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A</span>
+                            <span class="location-badge">Floor 2</span>
+                            <span class="location-badge">Unit 204</span>
+                        </div>
+                        <div class="item-time">10:23:14 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak. Tiles appear to be standard acoustic ceiling tiles showing brown staining patterns consistent with water infiltration.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                        <button class="action-btn">Delete</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="photo-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A</span>
+                            <span class="location-badge">Floor 2</span>
+                            <span class="location-badge">Unit 204</span>
+                        </div>
+                        <div class="item-time">10:24:07 AM</div>
+                    </div>
+                    <div class="photo-thumbnail">[Photo: Ceiling damage - IMG_2847.jpg - 4032x3024]</div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">View Full Size</button>
+                        <button class="action-btn">Add Caption</button>
+                        <button class="action-btn">Delete</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item d1-item">
+                    <div class="item-header d1-item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A</span>
+                            <span class="location-badge">Floor 2</span>
+                            <span class="location-badge">Unit 204</span>
+                        </div>
+                        <div class="item-time">10:25:32 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Inspected HVAC condensation pan. Pan shows standing water and appears to be draining improperly. Drain line may be clogged. This is likely the source of the ceiling damage noted above.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                        <button class="action-btn">Delete</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direction 2: Compact Information Dense -->
+    <div id="direction-2" class="direction-container">
+        <div class="direction-info">
+            <h2>Direction 2: Compact Information Dense</h2>
+            <p>More items visible per screen, tighter spacing, smaller text. Efficient for power users.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Dense</div>
+                <div><strong>Layout:</strong> Single column, narrower cards</div>
+                <div><strong>Photo Size:</strong> Medium thumbnails</div>
+                <div><strong>Best For:</strong> Users who want to see more timeline at once</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container" style="max-width: 900px;">
+                <div class="timeline-header" style="padding: 1rem;">
+                    <div class="timeline-title" style="font-size: 1.125rem;">Inspection Timeline</div>
+                    <div class="timeline-stats" style="font-size: 0.8125rem;">157 items • 42 photos</div>
+                </div>
+
+                <div class="placeholder-zone" style="height: 36px; margin-bottom: 0.5rem;">+ Add note</div>
+
+                <div class="timeline-item d2-item" style="margin-bottom: 0.5rem;">
+                    <div class="item-header" style="padding: 0.75rem;">
+                        <div class="location-badges">
+                            <span class="location-badge">Bldg A • Fl 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:23 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak.
+                    </div>
+                    <div class="item-actions" style="padding: 0.5rem 0.75rem;">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Edit</button>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone" style="height: 36px; margin-bottom: 0.5rem;">+ Add note</div>
+
+                <div class="photo-item" style="margin-bottom: 0.5rem;">
+                    <div class="item-header" style="padding: 0.75rem;">
+                        <div class="location-badges">
+                            <span class="location-badge">Bldg A • Fl 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:24 AM</div>
+                    </div>
+                    <div class="photo-thumbnail" style="aspect-ratio: 3/2;">[Photo: IMG_2847.jpg]</div>
+                    <div class="item-actions" style="padding: 0.5rem 0.75rem;">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">View</button>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Caption</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone" style="height: 36px; margin-bottom: 0.5rem;">+ Add note</div>
+
+                <div class="timeline-item d2-item" style="margin-bottom: 0.5rem;">
+                    <div class="item-header" style="padding: 0.75rem;">
+                        <div class="location-badges">
+                            <span class="location-badge">Bldg A • Fl 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:25 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Inspected HVAC condensation pan. Pan shows standing water and appears to be draining improperly.
+                    </div>
+                    <div class="item-actions" style="padding: 0.5rem 0.75rem;">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Edit</button>
+                        <button class="action-btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone" style="height: 36px; margin-bottom: 0.5rem;">+ Add note</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direction 3: Photo-Prominent Layout -->
+    <div id="direction-3" class="direction-container">
+        <div class="direction-info">
+            <h2>Direction 3: Photo-Prominent Layout</h2>
+            <p>Large photo previews that dominate the timeline. Easy visual scanning for photo-heavy inspections.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Balanced</div>
+                <div><strong>Layout:</strong> Single column, photos emphasized</div>
+                <div><strong>Photo Size:</strong> Extra-large thumbnails</div>
+                <div><strong>Best For:</strong> Inspections with lots of visual documentation</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title">Inspection Timeline</div>
+                    <div class="timeline-stats">157 items • 42 photos • 3 hours</div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:23:14 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="photo-item d3-photo-large">
+                    <div class="photo-thumbnail" style="height: 400px; font-size: 1rem;">[Photo Preview: Ceiling damage - IMG_2847.jpg - 4032x3024 - Click to enlarge]</div>
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:24:07 AM</div>
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">🔍 View Full Size</button>
+                        <button class="action-btn">Add Caption</button>
+                        <button class="action-btn">Delete</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:25:32 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Inspected HVAC condensation pan. Pan shows standing water and appears to be draining improperly. Drain line may be clogged.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direction 4: Split View with Attributes Panel -->
+    <div id="direction-4" class="direction-container">
+        <div class="direction-info">
+            <h2>Direction 4: Split View with Attributes Panel</h2>
+            <p>Timeline on left, persistent location context panel on right. Always see current location attributes.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Balanced</div>
+                <div><strong>Layout:</strong> Two columns (timeline + attributes)</div>
+                <div><strong>Photo Size:</strong> Medium thumbnails</div>
+                <div><strong>Best For:</strong> Users who frequently reference location attributes</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container" style="max-width: 1400px;">
+                <div class="d4-split">
+                    <div>
+                        <div class="timeline-header">
+                            <div class="timeline-title">Inspection Timeline</div>
+                            <div class="timeline-stats">157 items • 42 photos</div>
+                        </div>
+
+                        <div class="placeholder-zone">+ Add note</div>
+
+                        <div class="timeline-item">
+                            <div class="item-header">
+                                <div class="item-time">10:23:14 AM</div>
+                            </div>
+                            <div class="item-content">
+                                Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak.
+                            </div>
+                            <div class="item-actions">
+                                <span class="drag-handle">⋮⋮</span>
+                                <button class="action-btn">Edit</button>
+                                <button class="action-btn">Note</button>
+                            </div>
+                        </div>
+
+                        <div class="placeholder-zone">+ Add note</div>
+
+                        <div class="photo-item">
+                            <div class="photo-thumbnail" style="aspect-ratio: 16/10;">[Photo: IMG_2847.jpg]</div>
+                            <div class="item-header">
+                                <div class="item-time">10:24:07 AM</div>
+                            </div>
+                            <div class="item-actions">
+                                <span class="drag-handle">⋮⋮</span>
+                                <button class="action-btn">View</button>
+                                <button class="action-btn">Caption</button>
+                            </div>
+                        </div>
+
+                        <div class="placeholder-zone">+ Add note</div>
+                    </div>
+
+                    <div class="d4-attributes-panel">
+                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">Current Location</h3>
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Building</div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Building A</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Floor</div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Floor 2</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Unit</div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Unit 204</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Room</div>
+                                <div style="font-weight: 500; color: var(--text-primary);">Living Room</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                            <h4 style="font-size: 0.875rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem;">Quick Actions</h4>
+                            <button class="action-btn" style="width: 100%; margin-bottom: 0.5rem; justify-content: center; display: block;">Jump to Next Room</button>
+                            <button class="action-btn" style="width: 100%; justify-content: center; display: block;">Edit Attributes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direction 5: Horizontal Photo Thumbnails -->
+    <div id="direction-5" class="direction-container">
+        <div class="direction-info">
+            <h2>Direction 5: Horizontal Photo Thumbnails</h2>
+            <p>Photos displayed as horizontal scrollable galleries within cards. Space-efficient for multiple photos.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Balanced</div>
+                <div><strong>Layout:</strong> Single column with horizontal photo rows</div>
+                <div><strong>Photo Size:</strong> Medium horizontal thumbnails</div>
+                <div><strong>Best For:</strong> Sections with multiple related photos</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title">Inspection Timeline</div>
+                    <div class="timeline-stats">157 items • 42 photos • 3 hours</div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:23:14 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak. Multiple photos captured from different angles.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="photo-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="item-time">10:24:07 AM</div>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">3 photos</span>
+                        </div>
+                    </div>
+                    <div class="d5-photo-row" style="padding: 1rem;">
+                        <div class="d5-photo-thumb">[IMG_2847.jpg]</div>
+                        <div class="d5-photo-thumb">[IMG_2848.jpg]</div>
+                        <div class="d5-photo-thumb">[IMG_2849.jpg]</div>
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">View Gallery</button>
+                        <button class="action-btn">Add Caption</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+
+                <div class="timeline-item">
+                    <div class="item-header">
+                        <div class="location-badges">
+                            <span class="location-badge">Building A • Floor 2 • Unit 204</span>
+                        </div>
+                        <div class="item-time">10:25:32 AM</div>
+                    </div>
+                    <div class="item-content">
+                        Inspected HVAC condensation pan. Pan shows standing water and appears to be draining improperly.
+                    </div>
+                    <div class="item-actions">
+                        <span class="drag-handle">⋮⋮</span>
+                        <button class="action-btn">Edit</button>
+                        <button class="action-btn">Add Note</button>
+                    </div>
+                </div>
+
+                <div class="placeholder-zone">+ Add note</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Direction 6: Grouped by Location -->
+    <div id="direction-6" class="direction-container">
+        <div class="direction-info">
+            <h2>Direction 6: Grouped by Location</h2>
+            <p>Timeline items grouped into location-based sections. Clear spatial organization mirrors inspection flow.</p>
+            <div class="direction-meta">
+                <div><strong>Density:</strong> Spacious with visual grouping</div>
+                <div><strong>Layout:</strong> Single column with location groups</div>
+                <div><strong>Photo Size:</strong> Large thumbnails</div>
+                <div><strong>Best For:</strong> Understanding inspection by location/room</div>
+            </div>
+        </div>
+        <div class="mockup-viewport">
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title">Inspection Timeline</div>
+                    <div class="timeline-stats">157 items • 6 locations • 42 photos</div>
+                </div>
+
+                <div class="d6-location-group">
+                    <div class="d6-group-header">
+                        <span>Building A → Floor 2 → Unit 204 → Living Room</span>
+                    </div>
+
+                    <div class="placeholder-zone">+ Add note to this location</div>
+
+                    <div class="timeline-item" style="margin-bottom: 0.75rem;">
+                        <div class="item-header" style="border-bottom: none; padding-bottom: 0;">
+                            <div class="item-time">10:23:14 AM</div>
+                        </div>
+                        <div class="item-content">
+                            Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak.
+                        </div>
+                        <div class="item-actions">
+                            <span class="drag-handle">⋮⋮</span>
+                            <button class="action-btn">Edit</button>
+                            <button class="action-btn">Note</button>
+                        </div>
+                    </div>
+
+                    <div class="placeholder-zone">+ Add note</div>
+
+                    <div class="photo-item" style="margin-bottom: 0.75rem;">
+                        <div class="photo-thumbnail">[Photo: Ceiling damage - IMG_2847.jpg]</div>
+                        <div class="item-header" style="border-bottom: none;">
+                            <div class="item-time">10:24:07 AM</div>
+                        </div>
+                        <div class="item-actions">
+                            <span class="drag-handle">⋮⋮</span>
+                            <button class="action-btn">View Full Size</button>
+                            <button class="action-btn">Caption</button>
+                        </div>
+                    </div>
+
+                    <div class="placeholder-zone">+ Add note</div>
+
+                    <div class="timeline-item" style="margin-bottom: 0;">
+                        <div class="item-header" style="border-bottom: none; padding-bottom: 0;">
+                            <div class="item-time">10:25:32 AM</div>
+                        </div>
+                        <div class="item-content">
+                            Inspected HVAC condensation pan. Pan shows standing water and appears to be draining improperly.
+                        </div>
+                        <div class="item-actions">
+                            <span class="drag-handle">⋮⋮</span>
+                            <button class="action-btn">Edit</button>
+                            <button class="action-btn">Note</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d6-location-group">
+                    <div class="d6-group-header">
+                        <span>Building A → Floor 2 → Unit 204 → Bedroom</span>
+                    </div>
+
+                    <div class="placeholder-zone">+ Add note to this location</div>
+
+                    <div class="timeline-item" style="margin-bottom: 0;">
+                        <div class="item-header" style="border-bottom: none; padding-bottom: 0;">
+                            <div class="item-time">10:28:45 AM</div>
+                        </div>
+                        <div class="item-content">
+                            Bedroom appears in good condition. No visible water damage or moisture issues detected.
+                        </div>
+                        <div class="item-actions">
+                            <span class="drag-handle">⋮⋮</span>
+                            <button class="action-btn">Edit</button>
+                            <button class="action-btn">Note</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showDirection(num) {
+            // Hide all directions
+            document.querySelectorAll('.direction-container').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show selected direction
+            document.getElementById('direction-' + num).classList.add('active');
+
+            // Update button states
+            document.querySelectorAll('.nav-btn').forEach((btn, index) => {
+                btn.classList.remove('active');
+                if (index === num - 1) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

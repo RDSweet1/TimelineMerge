@@ -1,0 +1,198 @@
+name: complete-story
+description: "Full story lifecycle automation: create story → architect review → fix if needed → ready → implement → build verification → test → push to GitHub"
+author: "BMad"
+version: "1.4.0"
+executor: "sm"  # SM agent orchestrates and preserves context across sub-agents
+
+# CRITICAL EXECUTION POLICY
+# This workflow is designed for CONTINUOUS, UNINTERRUPTED execution from Step 1 through Step 11.
+# DO NOT stop mid-workflow to ask user if they want to continue - run all steps automatically.
+# The ONLY pause should be at the end (Step 11) for user to manually test the implemented features.
+# Purpose: Minimize interruptions so work doesn't get paused waiting for user approval between steps.
+
+# Critical variables from config
+config_source: "{project-root}/bmad/bmm/config.yaml"
+output_folder: "{config_source}:output_folder"
+user_name: "{config_source}:user_name"
+communication_language: "{config_source}:communication_language"
+document_output_language: "{config_source}:document_output_language"
+user_skill_level: "{config_source}:user_skill_level"
+date: system-generated
+
+# Workflow components
+installed_path: "{project-root}/bmad/bmm/workflows/4-implementation/complete-story"
+instructions: "{installed_path}/instructions.md"
+validation: "{installed_path}/checklist.md"
+
+# Context pre-loading configuration (for context-manager agent)
+# These documents will be loaded ONCE by context-manager and kept in memory
+# All spawned sub-agents (SM, Architect, Dev) will have access to these documents
+# without needing to re-read them from disk
+context_documents:
+  # Core configuration (always load first)
+  - path: "{project-root}/bmad/bmm/config.yaml"
+    alias: "config"
+    required: true
+
+  # Project documentation (load once, pass to all agents)
+  - path: "{output_folder}/epics.md"
+    alias: "epics"
+    required: true
+
+  - path: "{output_folder}/PRD.md"
+    alias: "prd"
+    required: true
+
+  - path: "{output_folder}/bmm-workflow-status.yaml"
+    alias: "workflow_status"
+    required: true
+
+  - path: "{output_folder}/architecture.md"
+    alias: "architecture"
+    required: false
+
+  # Tech spec will be discovered dynamically based on current epic
+  - path: "{output_folder}/tech-spec-epic-{{epic_num}}.md"
+    alias: "tech_spec"
+    required: true
+    dynamic: true  # Path contains {{epic_num}} variable resolved from workflow-status
+
+# Document locations (provide explicit paths to agents to avoid glob/grep searching)
+document_locations:
+  config_file: "{project-root}/bmad/bmm/config.yaml"
+  epics_file: "{output_folder}/epics.md"
+  prd_file: "{output_folder}/PRD.md"
+  workflow_status_file: "{output_folder}/bmm-workflow-status.yaml"
+  architecture_file: "{output_folder}/architecture.md"
+  tech_spec_file: "{output_folder}/tech-spec-epic-{{epic_num}}.md"  # Dynamic: epic_num from workflow-status
+  story_dir: "{config_source}:dev_story_location"
+
+# Variables and inputs
+variables:
+  max_architect_iterations: 2 # Maximum times to regenerate story based on architect feedback
+  enable_database_testing: true # Use Supabase MCP to test database operations
+  auto_push_to_github: true # Automatically push successful implementations
+  skip_manual_approval: false # If true, skip story-ready approval step
+
+# Orchestration steps
+orchestration:
+  - name: "Step 1: Approve Previous Story (if exists)"
+    agent: "dev"
+    workflow: "story-done"
+    description: "Mark the previous story (just tested) as Done and advance queue"
+    condition: "workflow-status has IN_PROGRESS_STORY populated"
+    inputs:
+      - workflow_status: "From SM orchestrator memory"
+    outputs:
+      - story_marked_done: "Previous story ID"
+      - queue_advanced: "TODO → IN_PROGRESS, BACKLOG → TODO"
+    on_failure: "abort"
+    skip_if_no_in_progress: true
+
+  - name: "Step 2: Create Story"
+    agent: "sm"
+    workflow: "create-story"
+    description: "SM agent creates draft story using epics, PRD, tech spec, and architecture docs"
+    on_failure: "abort"
+
+  - name: "Step 3: Architect Review"
+    agent: "architect-reviewer"
+    description: "Architect reviews story for technical feasibility and architectural alignment"
+    inputs:
+      - story_file: "Output from Step 2"
+      - tech_spec: "From workflow-status current epic"
+      - epics_file: "{output_folder}/epics.md"
+    outputs:
+      - review_verdict: "APPROVED or REQUIRES CHANGES"
+      - issues_found: "List of critical issues (if any)"
+      - recommendations: "List of improvements"
+    on_failure: "continue_to_step_4"
+
+  - name: "Step 4: Regenerate Story (if needed)"
+    agent: "sm"
+    workflow: "create-story"
+    description: "SM agent regenerates story incorporating architect feedback"
+    condition: "Step 3 verdict == REQUIRES CHANGES"
+    inputs:
+      - architect_feedback: "Output from Step 3"
+    max_iterations: "{max_architect_iterations}"
+    on_max_iterations: "prompt_user"
+    loop_to: "Step 3"
+
+  - name: "Step 5: Mark Story Ready"
+    agent: "sm"
+    workflow: "story-ready"
+    description: "Mark story as Ready for Development"
+    condition: "Step 3 verdict == APPROVED"
+    skip_if: "{skip_manual_approval}"
+
+  - name: "Step 6: Generate Story Context"
+    agent: "sm"
+    workflow: "story-context"
+    description: "Assemble dynamic Story Context XML from latest docs and code"
+
+  - name: "Step 7: Implement Story"
+    agent: "dev"
+    workflow: "dev-story"
+    description: "Dev agent implements all tasks, creates files, runs tests"
+    inputs:
+      - story_file: "From Step 2 (or Step 4 if regenerated)"
+      - story_context: "From Step 6"
+    outputs:
+      - files_created: "List of new files"
+      - files_modified: "List of modified files"
+      - tests_passed: "Boolean"
+      - implementation_status: "completed or blocked"
+    on_failure: "report_and_abort"
+
+  - name: "Step 8: Build Verification"
+    agent: "dev"
+    description: "Run local build (npm run build) and fix any TypeScript/build errors before proceeding"
+    condition: "Step 7 status == completed"
+    outputs:
+      - build_status: "success or failed"
+      - build_errors: "List of errors if any"
+      - fixes_applied: "List of fixes if errors found"
+    on_failure: "fix_errors_and_retry"
+    retry_policy:
+      max_attempts: 3
+      strategy: "Dev agent must fix all build errors before proceeding to git push"
+
+  - name: "Step 9: Test Implementation (Database)"
+    agent: "sm"
+    description: "Test database operations using Supabase MCP if applicable"
+    condition: "{enable_database_testing} AND story involves database changes"
+    test_types:
+      - "RLS policies (SELECT, INSERT, UPDATE, DELETE)"
+      - "Cross-user isolation"
+      - "Data migration verification"
+      - "Constraints and indexes"
+    outputs:
+      - test_results: "Pass/fail for each test"
+      - security_advisors: "Supabase security lint results"
+    on_failure: "report_issues"
+
+  - name: "Step 10: Push to GitHub"
+    agent: "dev"
+    description: "Commit changes and push to GitHub"
+    condition: "{auto_push_to_github} AND Step 8 build_status == success"
+    inputs:
+      - commit_message: "Auto-generated from story metadata"
+    on_failure: "report_and_continue"
+
+  - name: "Step 11: Report Completion"
+    agent: "sm"
+    description: "Generate completion report with summary and next steps"
+    outputs:
+      - story_status: "Ready for approval or Blocked"
+      - test_summary: "All test results"
+      - next_action: "Run approve-story workflow or fix issues"
+
+# Output configuration
+default_output_file: "{output_folder}/complete-story-report-{{epic_num}}.{{story_num}}.md"
+
+recommended_inputs:
+  - workflow_status: "To determine next story"
+  - epics: "Epic breakdown"
+  - tech_spec: "Technical specification for current epic"
+  - supabase_mcp: "For database testing (optional)"

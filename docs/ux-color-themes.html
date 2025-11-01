@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimelineMerge - Color Theme Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #1a1a1a;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .themes-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 2rem;
+        }
+
+        .theme-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .theme-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .theme-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .theme-description {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .theme-personality {
+            font-size: 0.85rem;
+            color: #888;
+            font-style: italic;
+        }
+
+        .palette-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .palette-section h4 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 0.75rem;
+        }
+
+        .color-swatches {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .swatch {
+            text-align: center;
+        }
+
+        .swatch-color {
+            width: 100%;
+            height: 60px;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .swatch-label {
+            font-size: 0.75rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .swatch-hex {
+            font-size: 0.7rem;
+            color: #999;
+            font-family: 'Courier New', monospace;
+        }
+
+        .component-preview {
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .preview-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .timeline-card-demo {
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .location-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .card-content {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .photo-card-demo {
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid;
+            margin-bottom: 0.75rem;
+        }
+
+        .photo-thumbnail {
+            width: 100%;
+            height: 180px;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            opacity: 0.5;
+        }
+
+        .alert-demo {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 TimelineMerge Color Theme Explorer</h1>
+        <p>Choose a visual direction that feels calm, focused, and subtly elegant</p>
+    </div>
+
+    <div class="themes-container">
+
+        <!-- Theme 1: Slate Calm -->
+        <div class="theme-card">
+            <div class="theme-header">
+                <h2 class="theme-name">1. Slate Calm</h2>
+                <p class="theme-description">Sophisticated neutrals with subtle blue accents. Clean, professional, easy on the eyes for long sessions.</p>
+                <p class="theme-personality">Personality: Professional & Unobtrusive | Best for: Focus and clarity</p>
+            </div>
+
+            <div class="palette-section">
+                <h4>Primary Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #475569;"></div>
+                        <div class="swatch-label">Primary</div>
+                        <div class="swatch-hex">#475569</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #64748b;"></div>
+                        <div class="swatch-label">Secondary</div>
+                        <div class="swatch-hex">#64748b</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #3b82f6;"></div>
+                        <div class="swatch-label">Accent</div>
+                        <div class="swatch-hex">#3b82f6</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <h4>Semantic Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #10b981;"></div>
+                        <div class="swatch-label">Success</div>
+                        <div class="swatch-hex">#10b981</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #f59e0b;"></div>
+                        <div class="swatch-label">Warning</div>
+                        <div class="swatch-hex">#f59e0b</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #ef4444;"></div>
+                        <div class="swatch-label">Error</div>
+                        <div class="swatch-hex">#ef4444</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-preview" style="background: #f8fafc;">
+                <div class="preview-label">Live Components</div>
+
+                <div class="button-group">
+                    <button class="btn" style="background: #475569; color: white;">Primary Action</button>
+                    <button class="btn" style="background: transparent; color: #475569; border: 1px solid #475569;">Secondary</button>
+                    <button class="btn" style="background: #f1f5f9; color: #64748b;">Tertiary</button>
+                </div>
+
+                <div class="timeline-card-demo" style="background: white; border-color: #e2e8f0; color: #334155;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #eff6ff; color: #3b82f6;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #94a3b8;">10:23 AM</span>
+                    </div>
+                    <div class="card-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active leak...
+                    </div>
+                </div>
+
+                <div class="photo-card-demo" style="background: white; border-color: #e2e8f0;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #eff6ff; color: #3b82f6;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #94a3b8;">10:24 AM</span>
+                    </div>
+                    <div class="photo-thumbnail" style="background: #f1f5f9; color: #94a3b8;">
+                        [Photo Preview: 1920x1080]
+                    </div>
+                </div>
+
+                <div class="alert-demo" style="background: #ecfdf5; border-color: #10b981; color: #047857;">
+                    ✓ Timeline organized successfully
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 2: Warm Neutral -->
+        <div class="theme-card">
+            <div class="theme-header">
+                <h2 class="theme-name">2. Warm Neutral</h2>
+                <p class="theme-description">Warm grays and amber accents. Inviting without sacrificing professionalism, easier on eyes than cool grays.</p>
+                <p class="theme-personality">Personality: Approachable & Refined | Best for: Comfortable long sessions</p>
+            </div>
+
+            <div class="palette-section">
+                <h4>Primary Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #78716c;"></div>
+                        <div class="swatch-label">Primary</div>
+                        <div class="swatch-hex">#78716c</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #a8a29e;"></div>
+                        <div class="swatch-label">Secondary</div>
+                        <div class="swatch-hex">#a8a29e</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #f59e0b;"></div>
+                        <div class="swatch-label">Accent</div>
+                        <div class="swatch-hex">#f59e0b</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <h4>Semantic Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #10b981;"></div>
+                        <div class="swatch-label">Success</div>
+                        <div class="swatch-hex">#10b981</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #f59e0b;"></div>
+                        <div class="swatch-label">Warning</div>
+                        <div class="swatch-hex">#f59e0b</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #dc2626;"></div>
+                        <div class="swatch-label">Error</div>
+                        <div class="swatch-hex">#dc2626</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-preview" style="background: #fafaf9;">
+                <div class="preview-label">Live Components</div>
+
+                <div class="button-group">
+                    <button class="btn" style="background: #78716c; color: white;">Primary Action</button>
+                    <button class="btn" style="background: transparent; color: #78716c; border: 1px solid #78716c;">Secondary</button>
+                    <button class="btn" style="background: #f5f5f4; color: #a8a29e;">Tertiary</button>
+                </div>
+
+                <div class="timeline-card-demo" style="background: white; border-color: #e7e5e4; color: #44403c;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #fef3c7; color: #d97706;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #a8a29e;">10:23 AM</span>
+                    </div>
+                    <div class="card-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active leak...
+                    </div>
+                </div>
+
+                <div class="photo-card-demo" style="background: white; border-color: #e7e5e4;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #fef3c7; color: #d97706;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #a8a29e;">10:24 AM</span>
+                    </div>
+                    <div class="photo-thumbnail" style="background: #f5f5f4; color: #a8a29e;">
+                        [Photo Preview: 1920x1080]
+                    </div>
+                </div>
+
+                <div class="alert-demo" style="background: #ecfdf5; border-color: #10b981; color: #047857;">
+                    ✓ Timeline organized successfully
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 3: Deep Teal -->
+        <div class="theme-card">
+            <div class="theme-header">
+                <h2 class="theme-name">3. Deep Teal</h2>
+                <p class="theme-description">Sophisticated teal with neutral grays. More distinctive personality while remaining calm and focused.</p>
+                <p class="theme-personality">Personality: Confident & Modern | Best for: Distinctive identity</p>
+            </div>
+
+            <div class="palette-section">
+                <h4>Primary Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #0f766e;"></div>
+                        <div class="swatch-label">Primary</div>
+                        <div class="swatch-hex">#0f766e</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #14b8a6;"></div>
+                        <div class="swatch-label">Secondary</div>
+                        <div class="swatch-hex">#14b8a6</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #06b6d4;"></div>
+                        <div class="swatch-label">Accent</div>
+                        <div class="swatch-hex">#06b6d4</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <h4>Semantic Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #10b981;"></div>
+                        <div class="swatch-label">Success</div>
+                        <div class="swatch-hex">#10b981</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #f59e0b;"></div>
+                        <div class="swatch-label">Warning</div>
+                        <div class="swatch-hex">#f59e0b</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #ef4444;"></div>
+                        <div class="swatch-label">Error</div>
+                        <div class="swatch-hex">#ef4444</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-preview" style="background: #f0fdfa;">
+                <div class="preview-label">Live Components</div>
+
+                <div class="button-group">
+                    <button class="btn" style="background: #0f766e; color: white;">Primary Action</button>
+                    <button class="btn" style="background: transparent; color: #0f766e; border: 1px solid #0f766e;">Secondary</button>
+                    <button class="btn" style="background: #ccfbf1; color: #0f766e;">Tertiary</button>
+                </div>
+
+                <div class="timeline-card-demo" style="background: white; border-color: #99f6e4; color: #134e4a;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #ccfbf1; color: #0f766e;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #5eead4;">10:23 AM</span>
+                    </div>
+                    <div class="card-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active leak...
+                    </div>
+                </div>
+
+                <div class="photo-card-demo" style="background: white; border-color: #99f6e4;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #ccfbf1; color: #0f766e;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #5eead4;">10:24 AM</span>
+                    </div>
+                    <div class="photo-thumbnail" style="background: #f0fdfa; color: #5eead4;">
+                        [Photo Preview: 1920x1080]
+                    </div>
+                </div>
+
+                <div class="alert-demo" style="background: #ecfdf5; border-color: #10b981; color: #047857;">
+                    ✓ Timeline organized successfully
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme 4: Indigo Precision -->
+        <div class="theme-card">
+            <div class="theme-header">
+                <h2 class="theme-name">4. Indigo Precision</h2>
+                <p class="theme-description">Deep indigo with crisp contrast. Professional and technical, with just enough color to feel modern.</p>
+                <p class="theme-personality">Personality: Technical & Polished | Best for: Sophisticated professionalism</p>
+            </div>
+
+            <div class="palette-section">
+                <h4>Primary Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #4f46e5;"></div>
+                        <div class="swatch-label">Primary</div>
+                        <div class="swatch-hex">#4f46e5</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #6366f1;"></div>
+                        <div class="swatch-label">Secondary</div>
+                        <div class="swatch-hex">#6366f1</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #818cf8;"></div>
+                        <div class="swatch-label">Accent</div>
+                        <div class="swatch-hex">#818cf8</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="palette-section">
+                <h4>Semantic Colors</h4>
+                <div class="color-swatches">
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #10b981;"></div>
+                        <div class="swatch-label">Success</div>
+                        <div class="swatch-hex">#10b981</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #f59e0b;"></div>
+                        <div class="swatch-label">Warning</div>
+                        <div class="swatch-hex">#f59e0b</div>
+                    </div>
+                    <div class="swatch">
+                        <div class="swatch-color" style="background: #ef4444;"></div>
+                        <div class="swatch-label">Error</div>
+                        <div class="swatch-hex">#ef4444</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-preview" style="background: #f5f5ff;">
+                <div class="preview-label">Live Components</div>
+
+                <div class="button-group">
+                    <button class="btn" style="background: #4f46e5; color: white;">Primary Action</button>
+                    <button class="btn" style="background: transparent; color: #4f46e5; border: 1px solid #4f46e5;">Secondary</button>
+                    <button class="btn" style="background: #e0e7ff; color: #4f46e5;">Tertiary</button>
+                </div>
+
+                <div class="timeline-card-demo" style="background: white; border-color: #c7d2fe; color: #3730a3;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #e0e7ff; color: #4f46e5;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #a5b4fc;">10:23 AM</span>
+                    </div>
+                    <div class="card-content">
+                        Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active leak...
+                    </div>
+                </div>
+
+                <div class="photo-card-demo" style="background: white; border-color: #c7d2fe;">
+                    <div class="card-header">
+                        <span class="location-badge" style="background: #e0e7ff; color: #4f46e5;">Building A • Floor 2</span>
+                        <span style="font-size: 0.75rem; color: #a5b4fc;">10:24 AM</span>
+                    </div>
+                    <div class="photo-thumbnail" style="background: #eef2ff; color: #a5b4fc;">
+                        [Photo Preview: 1920x1080]
+                    </div>
+                </div>
+
+                <div class="alert-demo" style="background: #ecfdf5; border-color: #10b981; color: #047857;">
+                    ✓ Timeline organized successfully
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div style="max-width: 1400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 12px; text-align: center;">
+        <h3 style="margin-bottom: 1rem; color: #1a1a1a;">Which theme resonates with your vision?</h3>
+        <p style="color: #666; margin-bottom: 1rem;">
+            Consider which color direction feels most "TimelineMerge" - calm, focused, subtly elegant, with enough personality to stand out from standard ShadCN apps.
+        </p>
+        <p style="color: #888; font-size: 0.9rem;">
+            You can choose a number, combine elements from different themes, or request variations!
+        </p>
+    </div>
+
+</body>
+</html>

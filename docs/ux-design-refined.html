@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimelineMerge - Refined Design Direction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #475569;
+            --secondary: #64748b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text-primary: #334155;
+            --text-secondary: #94a3b8;
+            --badge-bg: #eff6ff;
+            --badge-text: #3b82f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .app-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .app-header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .timeline-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .timeline-header {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .timeline-stats {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* REFINED PLACEHOLDER DESIGN */
+        .placeholder-divider {
+            position: relative;
+            height: 18px;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .placeholder-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            transition: all 0.2s ease;
+        }
+
+        .placeholder-icon {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 24px;
+            height: 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            opacity: 0;
+            transition: all 0.2s ease;
+        }
+
+        .placeholder-divider:hover .placeholder-line {
+            background: var(--accent);
+        }
+
+        .placeholder-divider:hover .placeholder-icon {
+            opacity: 1;
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Timeline Items */
+        .timeline-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .timeline-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-color: var(--secondary);
+        }
+
+        .timeline-item.selected {
+            border-color: var(--accent);
+            border-width: 2px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .location-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .location-badge {
+            background: var(--badge-bg);
+            color: var(--badge-text);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .item-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Courier New', monospace;
+        }
+
+        .item-content {
+            padding: 1rem;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            line-height: 1.5;
+        }
+
+        .item-actions {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-item:hover .item-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            padding: 0.375rem 0.75rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            font-size: 0.8125rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .action-btn:hover {
+            background: var(--bg);
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .drag-handle {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            cursor: grab;
+            margin-right: 0.5rem;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        /* Photo Items */
+        .photo-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .photo-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-color: var(--secondary);
+        }
+
+        .photo-item.selected {
+            border-color: var(--accent);
+            border-width: 2px;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+        }
+
+        .photo-row {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 1rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .photo-row::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .photo-row::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .photo-row::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .photo-row::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .photo-thumb {
+            min-width: 200px;
+            height: 120px;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.8125rem;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .photo-thumb:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .photo-count {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: 0.5rem;
+        }
+
+        /* Note annotation */
+        .note-label {
+            position: absolute;
+            top: -8px;
+            left: 1rem;
+            background: var(--bg);
+            padding: 0 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .demo-note {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-header">
+        <h1>TimelineMerge</h1>
+    </div>
+
+    <div class="timeline-container">
+        <div class="timeline-header">
+            <div class="timeline-title">Building A - Floor 2 - Unit 204</div>
+            <div class="timeline-stats">157 items • 42 photos • 3 hours 15 min</div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Transcript item -->
+        <div class="timeline-item">
+            <div class="item-header">
+                <div class="location-badges">
+                    <span class="location-badge">Building A</span>
+                    <span class="location-badge">Floor 2</span>
+                    <span class="location-badge">Unit 204</span>
+                    <span class="location-badge">Living Room</span>
+                </div>
+                <div class="item-time">10:23:14 AM</div>
+            </div>
+            <div class="item-content">
+                Observed water damage on ceiling tiles near HVAC unit. Discoloration suggests active or recent leak. Tiles appear to be standard acoustic ceiling tiles showing brown staining patterns consistent with water infiltration. Need to inspect condensation pan.
+            </div>
+            <div class="item-actions">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Add Note</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Photo item with horizontal thumbnails -->
+        <div class="photo-item">
+            <div class="item-header">
+                <div style="display: flex; align-items: center;">
+                    <div class="location-badges">
+                        <span class="location-badge">Building A</span>
+                        <span class="location-badge">Floor 2</span>
+                        <span class="location-badge">Unit 204</span>
+                        <span class="location-badge">Living Room</span>
+                    </div>
+                    <span class="photo-count">3 photos</span>
+                </div>
+                <div class="item-time">10:24:07 AM</div>
+            </div>
+            <div class="photo-row">
+                <div class="photo-thumb">[Ceiling damage wide - IMG_2847.jpg]</div>
+                <div class="photo-thumb">[Ceiling damage close-up - IMG_2848.jpg]</div>
+                <div class="photo-thumb">[Stain detail - IMG_2849.jpg]</div>
+            </div>
+            <div class="item-actions">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">🔍 View Gallery</button>
+                <button class="action-btn">Add Caption</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Note item (example) -->
+        <div class="timeline-item demo-note">
+            <span class="note-label">NOTE</span>
+            <div class="item-content">
+                Follow up: Schedule HVAC technician to inspect and clear drain line. Ceiling tiles will need replacement after repair is complete.
+            </div>
+            <div class="item-actions">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Another transcript item -->
+        <div class="timeline-item">
+            <div class="item-header">
+                <div class="location-badges">
+                    <span class="location-badge">Building A</span>
+                    <span class="location-badge">Floor 2</span>
+                    <span class="location-badge">Unit 204</span>
+                    <span class="location-badge">Living Room</span>
+                </div>
+                <div class="item-time">10:25:32 AM</div>
+            </div>
+            <div class="item-content">
+                Inspected HVAC condensation pan. Pan shows standing water approximately 1 inch deep and appears to be draining improperly. Drain line may be clogged. This is likely the source of the ceiling damage noted above. Recommend immediate service.
+            </div>
+            <div class="item-actions">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Add Note</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Single photo item -->
+        <div class="photo-item">
+            <div class="item-header">
+                <div style="display: flex; align-items: center;">
+                    <div class="location-badges">
+                        <span class="location-badge">Building A</span>
+                        <span class="location-badge">Floor 2</span>
+                        <span class="location-badge">Unit 204</span>
+                        <span class="location-badge">Living Room</span>
+                    </div>
+                    <span class="photo-count">1 photo</span>
+                </div>
+                <div class="item-time">10:26:18 AM</div>
+            </div>
+            <div class="photo-row">
+                <div class="photo-thumb">[HVAC pan standing water - IMG_2850.jpg]</div>
+            </div>
+            <div class="item-actions">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">🔍 View Full Size</button>
+                <button class="action-btn">Add Caption</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <!-- Selected item example -->
+        <div class="timeline-item selected">
+            <div class="item-header">
+                <div class="location-badges">
+                    <span class="location-badge">Building A</span>
+                    <span class="location-badge">Floor 2</span>
+                    <span class="location-badge">Unit 204</span>
+                    <span class="location-badge">Bedroom</span>
+                </div>
+                <div class="item-time">10:28:45 AM</div>
+            </div>
+            <div class="item-content">
+                Moving to bedroom. Bedroom appears in good condition overall. No visible water damage or moisture issues detected. Walls, ceiling, and flooring all appear normal. No musty odors present.
+            </div>
+            <div class="item-actions" style="opacity: 1;">
+                <span class="drag-handle">⋮⋮</span>
+                <button class="action-btn">Edit</button>
+                <button class="action-btn">Add Note</button>
+                <button class="action-btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Refined placeholder divider -->
+        <div class="placeholder-divider">
+            <div class="placeholder-line"></div>
+            <div class="placeholder-icon">+</div>
+        </div>
+
+        <div style="margin-top: 3rem; padding: 2rem; background: white; border: 1px solid var(--border); border-radius: 8px; text-align: center;">
+            <h3 style="font-size: 1.125rem; margin-bottom: 1rem; color: var(--text-primary);">✨ Refined Design Features</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; text-align: left; margin-top: 1.5rem;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Minimal Placeholders</div>
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">Horizontal line with centered + icon on hover. Space-efficient without sacrificing whitespace.</div>
+                </div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Horizontal Photo Galleries</div>
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">Multiple photos scroll horizontally. Works for 1 photo or many.</div>
+                </div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Progressive Actions</div>
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">Action buttons appear on hover. Drag handles visible when needed.</div>
+                </div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary);">Selection State</div>
+                    <div style="font-size: 0.875rem; color: var(--text-secondary);">Selected cards show accent border. Ready for keyboard/mouse wheel navigation.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
