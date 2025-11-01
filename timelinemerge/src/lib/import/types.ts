@@ -13,6 +13,8 @@
 export interface TranscriptSegment {
   /** Timestamp in HH:MM:SS format (e.g., "00:03:45", "01:23:00") */
   timestamp: string;
+  /** Elapsed time from recording start (e.g., "00:03:45") - stored in database */
+  elapsed_time?: string;
   /** Speaker label (e.g., "Speaker 1", "David", "Unknown Speaker") */
   speaker: string;
   /** Text content of the segment */

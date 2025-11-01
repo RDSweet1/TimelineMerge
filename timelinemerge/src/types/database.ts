@@ -41,6 +41,7 @@ export interface TranscriptItem {
   inspection_id: string;
   index_position: number;
   timestamp: string | null;
+  elapsed_time: string | null;
   speaker_label: string | null;
   text_content: string;
   created_at: string;
@@ -105,6 +106,7 @@ export interface TimelineItem {
   inspection_id: string;
   index_position: number;
   timestamp: string | null;
+  elapsed_time: string | null;
   item_type: 'transcript' | 'photo' | 'note';
   content: string | null;
   speaker_label: string | null;

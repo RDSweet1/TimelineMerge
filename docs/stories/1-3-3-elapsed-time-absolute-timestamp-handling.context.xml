@@ -1,0 +1,2000 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-id>1.3.3</story-id>
+    <story-title>Elapsed Time / Absolute Timestamp Handling</story-title>
+    <story-key>1-3-3-elapsed-time-absolute-timestamp-handling</story-key>
+    <epic>1: Project Foundation &amp; Data Import</epic>
+    <status>ready-for-dev</status>
+    <generated-date>2025-11-01</generated-date>
+    <generated-by>SM Agent (Bob)</generated-by>
+  </metadata>
+
+  <story-overview>
+    <user-story>
+      As an inspector,
+      I want the system to preserve elapsed time information from my transcripts,
+      So that I can reference the original recording timestamps and potentially sync with audio playback in the future.
+    </user-story>
+
+    <context-summary>
+      Story 1.3.3 addresses technical debt in the transcript import functionality by adding proper storage for elapsed time data. Currently, transcripts contain elapsed time information (e.g., "00:03:45" meaning 3 minutes 45 seconds into the recording), but this is stored as NULL in the database's TIMESTAMPTZ field because it represents relative time, not absolute timestamps.
+
+      This story adds a new elapsed_time TEXT field to the transcript_items table to store the original elapsed time values, updates the parser to populate this field, and prepares the TranscriptItem type for future UI display. The implementation maintains backward compatibility with existing NULL values and preserves the timestamp TIMESTAMPTZ field for future absolute timestamp functionality.
+    </context-summary>
+
+    <key-objectives>
+      <objective>Add elapsed_time TEXT field to transcript_items table via database migration</objective>
+      <objective>Update parser to populate elapsed_time field with normalized timestamp strings</objective>
+      <objective>Update importTranscript() Server Action to store elapsed_time in database</objective>
+      <objective>Update TypeScript type definitions to include elapsed_time field</objective>
+      <objective>Maintain backward compatibility with existing transcript_items (NULL elapsed_time)</objective>
+      <objective>Preserve timestamp TIMESTAMPTZ field for future absolute timestamp functionality</objective>
+    </key-objectives>
+  </story-overview>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: DOCUMENTATION CONTEXT -->
+  <!-- ============================================================ -->
+
+  <documentation-context>
+
+    <!-- PRD EXCERPT -->
+    <document name="PRD.md" path="C:/SourceCode/TimelineMerge/docs/PRD.md">
+      <section name="Functional Requirements - Data Import &amp; Processing">
+        <requirement id="FR001">
+          <text>System shall import Otter.ai transcript files and parse timestamps, speaker labels, and text content</text>
+          <relevance>Story extends transcript import to preserve elapsed time data from parsed timestamps</relevance>
+        </requirement>
+
+        <requirement id="FR005">
+          <text>System shall preserve original timestamps as metadata while using index positions for display order</text>
+          <relevance>Critical requirement - elapsed_time field preserves original timestamp metadata as required by PRD</relevance>
+        </requirement>
+      </section>
+
+      <section name="Functional Requirements - Timeline Organization">
+        <requirement id="FR003">
+          <text>System shall use timestamps to establish initial chronological ordering of transcript excerpts and photos on the timeline</text>
+          <relevance>Elapsed time enables proper chronological ordering during initial import</relevance>
+        </requirement>
+
+        <requirement id="FR004">
+          <text>System shall maintain index-based ordering for all timeline items independent of timestamps after initial sort</text>
+          <relevance>index_position remains primary ordering mechanism (no changes in this story)</relevance>
+        </requirement>
+      </section>
+    </document>
+
+    <!-- ARCHITECTURE EXCERPT -->
+    <document name="architecture.md" path="C:/SourceCode/TimelineMerge/docs/architecture.md">
+      <section name="Database Schema - transcript_items">
+        <schema-definition>
+          <table>transcript_items</table>
+          <columns>
+            <column name="id">UUID PRIMARY KEY</column>
+            <column name="inspection_id">UUID REFERENCES inspections(id)</column>
+            <column name="index_position">INTEGER NOT NULL</column>
+            <column name="timestamp">TIMESTAMPTZ (currently NULL - reserved for absolute timestamps)</column>
+            <column name="speaker_label">TEXT</column>
+            <column name="text_content">TEXT NOT NULL</column>
+            <column name="created_at">TIMESTAMPTZ</column>
+            <column name="updated_at">TIMESTAMPTZ</column>
+          </columns>
+          <constraints>
+            <constraint>UNIQUE(inspection_id, index_position)</constraint>
+          </constraints>
+          <technical-debt>Timestamps stored as NULL (future story may add elapsed_time TEXT field)</technical-debt>
+        </schema-definition>
+      </section>
+
+      <section name="Implementation Patterns - Server Actions">
+        <pattern name="ActionResult Pattern">
+          <description>All Server Actions MUST return structured result objects (never throw to client)</description>
+          <example>
+type ActionResult&lt;T&gt; =
+  | { success: true; data: T }
+  | { success: false; error: string }
+          </example>
+        </pattern>
+      </section>
+
+      <section name="Implementation Patterns - Logging">
+        <pattern name="Structured Console Logging">
+          <description>All logging MUST follow structured format with [Module] prefix</description>
+          <example>
+console.log('[Import] Action description:', {
+  relevantData,
+  timestamp: new Date().toISOString()
+});
+          </example>
+        </pattern>
+      </section>
+
+      <section name="Cross-Cutting Concerns - Error Handling">
+        <strategy>Server Actions never throw to client - always return ActionResult</strategy>
+        <strategy>Display errors via Toast component with user-friendly messages</strategy>
+        <strategy>Never expose technical details to users</strategy>
+      </section>
+    </document>
+
+    <!-- EPICS EXCERPT -->
+    <document name="epics.md" path="C:/SourceCode/TimelineMerge/docs/epics.md">
+      <section name="Epic 1 - Story 1.3">
+        <story id="1.3" title="Otter.ai Transcript Import">
+          <acceptance-criteria>
+            <criterion>Transcript segments stored as individual items in database linked to selected inspection</criterion>
+            <criterion>Items receive index positions based on chronological timestamp order</criterion>
+            <criterion>Parser extracts timestamps, speaker labels, and text content from transcript</criterion>
+          </acceptance-criteria>
+          <technical-debt>Timestamps stored as NULL (ordering by index_position)</technical-debt>
+        </story>
+      </section>
+    </document>
+
+    <!-- SPRINT STATUS EXCERPT -->
+    <document name="sprint-status.yaml" path="C:/SourceCode/TimelineMerge/docs/sprint-status.yaml">
+      <status>
+        <story id="1-3-otter-ai-transcript-import" status="done"/>
+        <story id="1-3-1-word-document-parser" status="done"/>
+        <story id="1-3-2-pdf-document-parser" status="done"/>
+        <story id="1-3-3-elapsed-time-absolute-timestamp-handling" status="ready-for-dev"/>
+      </status>
+    </document>
+
+  </documentation-context>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: CODE ARTIFACTS -->
+  <!-- ============================================================ -->
+
+  <code-artifacts>
+
+    <!-- DATABASE SCHEMA -->
+    <artifact name="001_initial_schema.sql"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/supabase/migrations/001_initial_schema.sql"
+              type="database-migration"
+              status="existing">
+      <description>
+        Initial database schema with transcript_items table. Story 1.3.3 will add a new migration to extend this schema with elapsed_time field.
+      </description>
+      <full-content>
+<![CDATA[
+-- TimelineMerge Database Schema - Initial Migration
+-- Generated: 2025-11-01
+-- Story: 1.2 Database Foundation
+-- Description: Complete database schema with hierarchical project/inspection/item structure
+
+-- =============================================================================
+-- Table: projects
+-- Description: Top-level entity representing a project containing inspections
+-- =============================================================================
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  client_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for efficient querying
+CREATE INDEX idx_projects_created_at ON projects(created_at DESC);
+
+-- =============================================================================
+-- Table: inspections
+-- Description: Inspection events within a project
+-- =============================================================================
+CREATE TABLE inspections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  inspection_date DATE,
+  site_type_schema TEXT CHECK (site_type_schema IN ('commercial_v1', 'commercial_v2', 'residential')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for efficient querying
+CREATE INDEX idx_inspections_project_id ON inspections(project_id);
+CREATE INDEX idx_inspections_created_at ON inspections(created_at DESC);
+
+-- =============================================================================
+-- Table: transcript_items
+-- Description: Transcript entries with timestamps and speaker labels
+-- =============================================================================
+CREATE TABLE transcript_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  index_position INTEGER NOT NULL,
+  timestamp TIMESTAMPTZ,
+  speaker_label TEXT,
+  text_content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Ensure unique ordering within an inspection
+  CONSTRAINT uq_transcript_items_inspection_position UNIQUE (inspection_id, index_position)
+);
+
+-- Indexes for efficient querying and ordering
+CREATE INDEX idx_transcript_items_inspection_id ON transcript_items(inspection_id);
+CREATE INDEX idx_transcript_items_inspection_position ON transcript_items(inspection_id, index_position);
+
+-- =============================================================================
+-- Table: photo_items
+-- Description: Photo entries with file paths and EXIF metadata
+-- =============================================================================
+CREATE TABLE photo_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  index_position INTEGER NOT NULL,
+  timestamp TIMESTAMPTZ,
+  file_path TEXT NOT NULL,
+  caption TEXT,
+  exif_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Ensure unique ordering within an inspection
+  CONSTRAINT uq_photo_items_inspection_position UNIQUE (inspection_id, index_position)
+);
+
+-- Indexes for efficient querying and ordering
+CREATE INDEX idx_photo_items_inspection_id ON photo_items(inspection_id);
+CREATE INDEX idx_photo_items_inspection_position ON photo_items(inspection_id, index_position);
+
+-- =============================================================================
+-- Table: note_items
+-- Description: User notes (headers, footers, free-floating) with associations
+-- =============================================================================
+CREATE TABLE note_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inspection_id UUID NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  index_position INTEGER NOT NULL,
+  note_type TEXT NOT NULL CHECK (note_type IN ('header', 'footer', 'free_floating')),
+  associated_item_id UUID,
+  associated_item_type TEXT CHECK (associated_item_type IN ('transcript', 'photo') OR associated_item_type IS NULL),
+  text_content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Ensure unique ordering within an inspection
+  CONSTRAINT uq_note_items_inspection_position UNIQUE (inspection_id, index_position)
+);
+
+-- Indexes for efficient querying and ordering
+CREATE INDEX idx_note_items_inspection_id ON note_items(inspection_id);
+CREATE INDEX idx_note_items_inspection_position ON note_items(inspection_id, index_position);
+CREATE INDEX idx_note_items_associated_item ON note_items(associated_item_id, associated_item_type);
+
+-- =============================================================================
+-- Table: location_attributes
+-- Description: Polymorphic location data for any item type
+-- =============================================================================
+CREATE TABLE location_attributes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id UUID NOT NULL,
+  item_type TEXT NOT NULL CHECK (item_type IN ('transcript', 'photo', 'note')),
+  building TEXT,
+  floor TEXT,
+  unit TEXT,
+  room TEXT,
+  monitor_point TEXT,
+  extraction_confidence DECIMAL(3,2) CHECK (extraction_confidence >= 0 AND extraction_confidence <= 1),
+  is_inherited BOOLEAN NOT NULL DEFAULT false,
+  manually_edited BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Ensure one location record per item
+  CONSTRAINT uq_location_attributes_item UNIQUE (item_id, item_type)
+);
+
+-- Index for efficient polymorphic lookups
+CREATE INDEX idx_location_attributes_item ON location_attributes(item_id, item_type);
+
+-- =============================================================================
+-- View: timeline_items
+-- Description: Unified view of all item types ordered by index_position
+-- =============================================================================
+CREATE OR REPLACE VIEW timeline_items AS
+  -- Transcript items
+  SELECT
+    id,
+    inspection_id,
+    index_position,
+    timestamp,
+    'transcript' AS item_type,
+    text_content AS content,
+    speaker_label,
+    NULL AS file_path,
+    NULL AS caption,
+    created_at,
+    updated_at
+  FROM transcript_items
+
+  UNION ALL
+
+  -- Photo items
+  SELECT
+    id,
+    inspection_id,
+    index_position,
+    timestamp,
+    'photo' AS item_type,
+    caption AS content,
+    NULL AS speaker_label,
+    file_path,
+    caption,
+    created_at,
+    updated_at
+  FROM photo_items
+
+  UNION ALL
+
+  -- Note items
+  SELECT
+    id,
+    inspection_id,
+    index_position,
+    NULL AS timestamp,
+    'note' AS item_type,
+    text_content AS content,
+    NULL AS speaker_label,
+    NULL AS file_path,
+    NULL AS caption,
+    created_at,
+    updated_at
+  FROM note_items
+
+  ORDER BY index_position;
+
+-- =============================================================================
+-- Migration Complete
+-- =============================================================================
+-- Tables created: 6 (projects, inspections, transcript_items, photo_items, note_items, location_attributes)
+-- Views created: 1 (timeline_items)
+-- Indexes created: 11 (for performance optimization)
+-- Constraints: UNIQUE on (inspection_id, index_position) for all item tables
+-- Relationships: ON DELETE CASCADE for all foreign keys
+]]>
+      </full-content>
+      <key-points>
+        <point>transcript_items table currently has timestamp TIMESTAMPTZ field (always NULL)</point>
+        <point>UNIQUE constraint on (inspection_id, index_position) enforces ordering</point>
+        <point>timeline_items VIEW unions all item types - will need to be updated</point>
+        <point>No elapsed_time field exists yet - Story 1.3.3 adds this</point>
+      </key-points>
+    </artifact>
+
+    <!-- PARSER TYPES -->
+    <artifact name="types.ts"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/src/lib/import/types.ts"
+              type="typescript-types"
+              status="to-modify">
+      <description>
+        Parser type definitions. Story 1.3.3 will add elapsed_time?: string to TranscriptSegment interface.
+      </description>
+      <full-content>
+<![CDATA[
+/**
+ * TypeScript types for Otter.ai transcript parsing
+ *
+ * These types represent the parsed transcript data before it's converted
+ * to database entities (TranscriptItem).
+ */
+
+/**
+ * A single segment from a parsed transcript
+ *
+ * Timestamps are normalized to HH:MM:SS format for uniform storage
+ */
+export interface TranscriptSegment {
+  /** Timestamp in HH:MM:SS format (e.g., "00:03:45", "01:23:00") */
+  timestamp: string;
+  /** Speaker label (e.g., "Speaker 1", "David", "Unknown Speaker") */
+  speaker: string;
+  /** Text content of the segment */
+  text: string;
+}
+
+/**
+ * Complete parsed transcript with metadata
+ */
+export interface ParsedTranscript {
+  /** Array of transcript segments in chronological order */
+  segments: TranscriptSegment[];
+  /** Optional metadata about the transcript */
+  metadata?: {
+    /** Total number of segments */
+    totalSegments: number;
+    /** File format detected (.txt, .json, .docx, or .pdf) */
+    format: TranscriptFormat;
+    /** Original file name */
+    fileName: string;
+  };
+}
+
+/**
+ * Supported transcript formats
+ */
+export type TranscriptFormat = 'txt' | 'json' | 'docx' | 'pdf';
+
+/**
+ * JSON format structure from Otter.ai export
+ */
+export interface OtterJsonSegment {
+  speaker: string;
+  start_time: number; // seconds
+  end_time?: number; // seconds
+  text: string;
+}
+
+export interface OtterJsonTranscript {
+  segments: OtterJsonSegment[];
+}
+
+/**
+ * Photo metadata extracted from EXIF data or file metadata
+ *
+ * Used for photo import workflow before conversion to PhotoItem entity
+ */
+export interface PhotoMetadata {
+  /** Timestamp from EXIF (DateTimeOriginal/CreateDate) or file.lastModified */
+  timestamp: Date | null;
+  /** Camera device info from EXIF (Make + Model) */
+  device: string | null;
+  /** GPS coordinates from EXIF */
+  gps: { lat: number; lon: number } | null;
+  /** Full file path (absolute or relative) */
+  filePath: string;
+  /** File name */
+  fileName: string;
+  /** File size in bytes */
+  fileSize: number;
+}
+
+/**
+ * Photo file with File handle and relative path
+ *
+ * Returned by directory picker, used for EXIF extraction
+ */
+export interface PhotoFile {
+  /** Browser File object */
+  file: File;
+  /** Relative path within selected directory */
+  relativePath: string;
+}
+]]>
+      </full-content>
+      <modification-plan>
+        <change>Add elapsed_time?: string field to TranscriptSegment interface (optional)</change>
+        <change>Update interface documentation to explain elapsed_time purpose</change>
+        <rationale>Optional field because parser may not always have timestamp data</rationale>
+      </modification-plan>
+    </artifact>
+
+    <!-- TRANSCRIPT PARSER -->
+    <artifact name="transcript-parser.ts"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/src/lib/import/transcript-parser.ts"
+              type="typescript-module"
+              status="to-modify">
+      <description>
+        Transcript parser implementation. Story 1.3.3 will update parseOtterTxtFormat() and parseOtterJsonFormat() to populate elapsed_time field.
+      </description>
+      <full-content>
+<![CDATA[
+/**
+ * Otter.ai Transcript Parser
+ *
+ * Parses transcript files in .txt, .json, .docx, and .pdf formats.
+ * Extracts timestamps, speaker labels, and text content.
+ * Normalizes all timestamps to HH:MM:SS format for uniform storage.
+ */
+
+import mammoth from 'mammoth';
+import {
+  TranscriptSegment,
+  ParsedTranscript,
+  TranscriptFormat,
+  OtterJsonTranscript,
+  OtterJsonSegment,
+} from './types';
+
+/**
+ * Read and parse transcript file (client-side wrapper)
+ *
+ * This wrapper function handles all file format detection and reading client-side.
+ * It extracts plain text from .docx files using mammoth.js and .pdf files using
+ * pdfjs-dist, then calls the existing parseOtterTranscript() function to parse the content.
+ *
+ * @param file - File object from file input
+ * @returns ParsedTranscript with segments and metadata
+ * @throws Error if file format is unsupported or parsing fails
+ */
+export async function readAndParseTranscriptFile(
+  file: File
+): Promise<ParsedTranscript> {
+  try {
+    let fileContent: string;
+
+    // Check file extension
+    const fileExtension = file.name
+      .substring(file.name.lastIndexOf('.'))
+      .toLowerCase();
+
+    if (fileExtension === '.pdf') {
+      // Extract text from PDF document using pdfjs-dist
+      // Dynamic import to avoid SSR issues
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+
+        // Configure worker path (only in browser environment)
+        if (typeof window !== 'undefined') {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+
+        let fullText = '';
+        // Extract text from all pages
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item) => {
+              // PDF text items have a 'str' property containing the text
+              if (typeof item === 'object' && item !== null && 'str' in item) {
+                return (item as { str: string }).str;
+              }
+              return '';
+            })
+            .join(' ');
+          fullText += pageText + '\n';
+
+          // Clean up page resources
+          page.cleanup();
+        }
+
+        fileContent = fullText;
+
+        // Clean up PDF document
+        await pdf.cleanup();
+      } catch (pdfError) {
+        console.error('[Parser] PDF extraction failed:', pdfError);
+        throw new Error(
+          'Failed to read PDF document. The file may be corrupted, password-protected, or use an unsupported PDF version. Note: Scanned PDFs (images) are not supported.'
+        );
+      }
+    } else if (fileExtension === '.docx') {
+      // Extract raw text from Word document using mammoth
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        fileContent = result.value;
+      } catch (mammothError) {
+        console.error('[Parser] Mammoth extraction failed:', mammothError);
+        throw new Error(
+          'Failed to read Word document. The file may be corrupted or password-protected.'
+        );
+      }
+    } else if (fileExtension === '.txt' || fileExtension === '.json') {
+      // Read as plain text
+      fileContent = await file.text();
+    } else {
+      throw new Error(
+        'Unsupported file format. Please upload a .txt, .json, .docx, or .pdf file.'
+      );
+    }
+
+    // Call existing parseOtterTranscript() with extracted text
+    return parseOtterTranscript(fileContent, file.name);
+  } catch (error) {
+    // Re-throw if already a formatted error message
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to parse file');
+  }
+}
+
+/**
+ * Parse Otter.ai transcript file (auto-detects format from fileName)
+ *
+ * @param fileContent - File content as string
+ * @param fileName - File name (used to detect format: .txt, .json, .docx, or .pdf)
+ * @returns ParsedTranscript with segments and metadata
+ * @throws Error if file format is unsupported or parsing fails
+ */
+export function parseOtterTranscript(
+  fileContent: string,
+  fileName: string
+): ParsedTranscript {
+  // Detect format from file extension
+  const extension = fileName
+    .substring(fileName.lastIndexOf('.'))
+    .toLowerCase();
+
+  let format: TranscriptFormat;
+  if (extension === '.json') {
+    format = 'json';
+  } else if (extension === '.docx') {
+    format = 'docx';
+  } else if (extension === '.pdf') {
+    format = 'pdf';
+  } else {
+    format = 'txt';
+  }
+
+  // Parse based on format (docx and pdf have been converted to plain text by wrapper)
+  let segments: TranscriptSegment[];
+  if (format === 'json') {
+    segments = parseOtterJsonFormat(fileContent);
+  } else {
+    // .txt, .docx, and .pdf all use same text format parsing
+    segments = parseOtterTxtFormat(fileContent);
+  }
+
+  // Return parsed transcript with metadata
+  return {
+    segments,
+    metadata: {
+      totalSegments: segments.length,
+      format,
+      fileName,
+    },
+  };
+}
+/**
+ * Parse Otter.ai text format (.txt)
+ *
+ * Text format structure:
+ * ```
+ * Speaker 1  0:03
+ * This is the first segment of text.
+ *
+ * Speaker 2  0:15
+ * This is a response from the second speaker.
+ * ```
+ *
+ * @param content - File content as string
+ * @returns Array of transcript segments
+ * @throws Error if parsing fails
+ */
+export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
+  const segments: TranscriptSegment[] = [];
+  const lines = content.split('\n');
+
+  let currentSpeaker: string | null = null;
+  let currentTimestamp: string | null = null;
+  let currentText: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Skip empty lines (they separate segments)
+    if (line === '') {
+      // Save previous segment if exists
+      if (currentSpeaker && currentTimestamp && currentText.length > 0) {
+        segments.push({
+          speaker: currentSpeaker,
+          timestamp: currentTimestamp,
+          text: currentText.join(' ').trim(),
+        });
+      }
+      // Reset for next segment
+      currentSpeaker = null;
+      currentTimestamp = null;
+      currentText = [];
+      continue;
+    }
+
+    // Check if this line is a speaker/timestamp line
+    // Pattern: "Speaker Name  HH:MM:SS" or "Speaker Name  MM:SS"
+    // Uses multiple spaces or tab as separator
+    const speakerTimestampMatch = line.match(/^(.+?)\s{2,}([\d:]+)$/);
+
+    if (speakerTimestampMatch) {
+      // Save previous segment if exists
+      if (currentSpeaker && currentTimestamp && currentText.length > 0) {
+        segments.push({
+          speaker: currentSpeaker,
+          timestamp: currentTimestamp,
+          text: currentText.join(' ').trim(),
+        });
+      }
+
+      // Start new segment
+      currentSpeaker = speakerTimestampMatch[1].trim();
+      currentTimestamp = normalizeTimestamp(speakerTimestampMatch[2].trim());
+      currentText = [];
+    } else {
+      // This is text content for current segment
+      if (currentSpeaker && currentTimestamp) {
+        currentText.push(line);
+      }
+    }
+  }
+
+  // Save last segment if exists
+  if (currentSpeaker && currentTimestamp && currentText.length > 0) {
+    segments.push({
+      speaker: currentSpeaker,
+      timestamp: currentTimestamp,
+      text: currentText.join(' ').trim(),
+    });
+  }
+
+  // Handle edge case: no segments found
+  if (segments.length === 0) {
+    throw new Error(
+      'No transcript segments found. Please check the file format.'
+    );
+  }
+
+  // Handle edge case: missing timestamps (assign sequential timestamps)
+  segments.forEach((segment, index) => {
+    if (!segment.timestamp || segment.timestamp === '00:00:00') {
+      segment.timestamp = normalizeTimestamp(index.toString());
+    }
+  });
+
+  return segments;
+}
+
+/**
+ * Parse Otter.ai JSON format (.json)
+ *
+ * JSON format structure:
+ * ```json
+ * {
+ *   "segments": [
+ *     {
+ *       "speaker": "Speaker 1",
+ *       "start_time": 3.5,
+ *       "end_time": 12.8,
+ *       "text": "This is the first segment."
+ *     }
+ *   ]
+ * }
+ * ```
+ *
+ * @param content - File content as string
+ * @returns Array of transcript segments
+ * @throws Error if JSON is malformed or parsing fails
+ */
+export function parseOtterJsonFormat(content: string): TranscriptSegment[] {
+  try {
+    const json: OtterJsonTranscript = JSON.parse(content);
+
+    if (!json.segments || !Array.isArray(json.segments)) {
+      throw new Error('Invalid JSON format: missing "segments" array');
+    }
+
+    const segments: TranscriptSegment[] = json.segments.map(
+      (segment: OtterJsonSegment, index: number) => {
+        // Extract speaker (default to "Unknown Speaker" if missing)
+        const speaker =
+          segment.speaker && segment.speaker.trim() !== ''
+            ? segment.speaker.trim()
+            : `Speaker ${index + 1}`;
+
+        // Extract timestamp (convert numeric seconds to HH:MM:SS)
+        const timestamp =
+          segment.start_time !== undefined
+            ? normalizeTimestamp(segment.start_time.toString())
+            : normalizeTimestamp(index.toString());
+
+        // Extract text content (default to empty string if missing)
+        const text =
+          segment.text && segment.text.trim() !== ''
+            ? segment.text.trim()
+            : '';
+
+        return {
+          speaker,
+          timestamp,
+          text,
+        };
+      }
+    );
+
+    // Filter out segments with empty text
+    const validSegments = segments.filter(
+      (segment) => segment.text.length > 0
+    );
+
+    if (validSegments.length === 0) {
+      throw new Error(
+        'No valid transcript segments found. All segments have empty text.'
+      );
+    }
+
+    return validSegments;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(
+        'Failed to parse JSON file. Please ensure the file is valid JSON.'
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Normalize timestamp to HH:MM:SS format
+ *
+ * Handles multiple input formats:
+ * - HH:MM:SS → "01:23:45"
+ * - MM:SS → "00:01:23"
+ * - M:SS → "00:01:23"
+ * - Numeric seconds (string) → "00:01:23"
+ * - Numeric seconds (from JSON) → "00:01:23"
+ *
+ * @param timestamp - Input timestamp in various formats
+ * @returns Normalized timestamp in HH:MM:SS format
+ */
+export function normalizeTimestamp(timestamp: string): string {
+  // Handle empty or invalid input
+  if (!timestamp || timestamp.trim() === '') {
+    return '00:00:00';
+  }
+
+  const trimmed = timestamp.trim();
+
+  // Check if it's already in HH:MM:SS format (with optional leading zeros)
+  const hhmmssMatch = trimmed.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (hhmmssMatch) {
+    const hours = parseInt(hhmmssMatch[1], 10);
+    const minutes = parseInt(hhmmssMatch[2], 10);
+    const seconds = parseInt(hhmmssMatch[3], 10);
+    return formatTime(hours, minutes, seconds);
+  }
+
+  // Check if it's in MM:SS format
+  const mmssMatch = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (mmssMatch) {
+    const minutes = parseInt(mmssMatch[1], 10);
+    const seconds = parseInt(mmssMatch[2], 10);
+    return formatTime(0, minutes, seconds);
+  }
+
+  // Try parsing as numeric seconds (string or number)
+  const numericSeconds = parseFloat(trimmed);
+  if (!isNaN(numericSeconds) && numericSeconds >= 0) {
+    const totalSeconds = Math.floor(numericSeconds);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return formatTime(hours, minutes, seconds);
+  }
+
+  // Default: return 00:00:00 for unparseable timestamps
+  console.warn(
+    `[Parser] Could not parse timestamp "${timestamp}", using 00:00:00`
+  );
+  return '00:00:00';
+}
+
+/**
+ * Format time components to HH:MM:SS string
+ *
+ * @param hours - Hours (0-23)
+ * @param minutes - Minutes (0-59)
+ * @param seconds - Seconds (0-59)
+ * @returns Formatted time string (e.g., "01:23:45")
+ */
+function formatTime(hours: number, minutes: number, seconds: number): string {
+  const hh = hours.toString().padStart(2, '0');
+  const mm = minutes.toString().padStart(2, '0');
+  const ss = seconds.toString().padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+]]>
+      </full-content>
+      <modification-plan>
+        <change location="parseOtterTxtFormat()">
+          Add elapsed_time field to segment object: elapsed_time: currentTimestamp
+        </change>
+        <change location="parseOtterJsonFormat()">
+          Add elapsed_time field to segment object: elapsed_time: timestamp
+        </change>
+        <rationale>Store normalized timestamp in BOTH timestamp and elapsed_time fields for backward compatibility</rationale>
+        <important>DO NOT modify normalizeTimestamp() function - signature remains unchanged</important>
+      </modification-plan>
+    </artifact>
+
+    <!-- IMPORT SERVER ACTION -->
+    <artifact name="import.ts"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/src/actions/import.ts"
+              type="server-action"
+              status="to-modify">
+      <description>
+        Import Server Action. Story 1.3.3 will update importTranscript() to include elapsed_time field in batch insert.
+      </description>
+      <full-content>
+<![CDATA[
+'use server';
+
+/**
+ * Server Actions for Transcript Import
+ *
+ * Handles importing Otter.ai transcript files and storing them as transcript items.
+ * All actions follow the standard pattern:
+ * - Return ActionResult<T> (never throw to client)
+ * - Validate input before operations
+ * - Use structured logging with [Import] prefix
+ * - Handle errors gracefully with user-friendly messages
+ */
+
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult } from '@/types/database';
+import { ParsedTranscript } from '@/lib/import/types';
+
+/**
+ * Import Otter.ai transcript file
+ *
+ * Parses the transcript content, extracts segments, and stores them as transcript items.
+  * Receives pre-parsed transcript content and stores as transcript items.
+  * File reading and parsing happen on the client side using readAndParseTranscriptFile().
+ * @param inspectionId - UUID of inspection to import into
+  * @param parsedTranscript - Parsed transcript with segments (parsed on client)
+  * @param fileName - File name (for logging and metadata)
+ * @returns ActionResult with count of imported items or error
+ */
+export async function importTranscript(
+  inspectionId: string,
+  parsedTranscript: ParsedTranscript,
+  fileName: string
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    // Validate input
+    if (!inspectionId || inspectionId.trim() === '') {
+      return { success: false, error: 'Inspection ID is required' };
+    }
+    if (!parsedTranscript || !parsedTranscript.segments || parsedTranscript.segments.length === 0) {
+      return { success: false, error: 'Parsed transcript is empty or invalid' };
+    }
+    if (!fileName || fileName.trim() === '') {
+      return { success: false, error: 'File name is required' };
+    }
+
+    console.log('[Import] Starting transcript import:', {
+      inspectionId,
+      fileName,
+      segmentCount: parsedTranscript.segments.length,
+      format: parsedTranscript.metadata?.format,
+      timestamp: new Date().toISOString(),
+    });
+    // Sort segments by timestamp (chronological order)
+    const sortedSegments = parsedTranscript.segments.sort((a, b) =>
+      a.timestamp.localeCompare(b.timestamp)
+    );
+
+    // Prepare items for batch insert
+    const supabase = await createClient();
+    const itemsToInsert = sortedSegments.map((segment, index) => ({
+      inspection_id: inspectionId,
+      index_position: index,
+      // Note: timestamp field is TIMESTAMPTZ in DB, but we only have elapsed time (HH:MM:SS)
+      // For MVP, store NULL and rely on index_position for ordering
+      // Future enhancement: add elapsed_time TEXT field to store HH:MM:SS format
+      timestamp: null,
+      speaker_label: segment.speaker,
+      text_content: segment.text,
+    }));
+
+    // Batch insert all transcript items
+    const { data, error } = await supabase
+      .from('transcript_items')
+      .insert(itemsToInsert)
+      .select();
+
+    if (error) {
+      console.error('[Import] Failed to insert transcript items:', {
+        inspectionId,
+        fileName,
+        count: itemsToInsert.length,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Handle UNIQUE constraint violation (duplicate import)
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error:
+            'This inspection already has transcript items. Delete existing items before re-importing.',
+        };
+      }
+
+      // Handle foreign key violation (inspection doesn't exist)
+      if (error.code === '23503') {
+        return {
+          success: false,
+          error: 'Inspection not found',
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Failed to import transcript',
+      };
+    }
+
+    console.log('[Import] Successfully imported transcript:', {
+      inspectionId,
+      fileName,
+      count: data.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true, data: { count: data.length } };
+  } catch (error) {
+    console.error('[Import] Unexpected error:', {
+      inspectionId,
+      fileName,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return {
+      success: false,
+      error: 'An unexpected error occurred during import',
+    };
+  }
+}
+
+/**
+ * Import photos from directory
+ *
+ * Receives photo metadata extracted on client side and stores as photo items.
+ * Photos are sorted chronologically by timestamp and assigned sequential index positions.
+ *
+ * @param inspectionId - UUID of inspection to import into
+ * @param photos - Array of PhotoMetadata objects with EXIF data
+ * @returns ActionResult with count of imported photos or error
+ */
+export async function importPhotos(
+  inspectionId: string,
+  photos: Array<{
+    timestamp: Date | null;
+    device: string | null;
+    gps: { lat: number; lon: number } | null;
+    filePath: string;
+    fileName: string;
+    fileSize: number;
+  }>
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    // Validate input
+    if (!inspectionId || inspectionId.trim() === '') {
+      return { success: false, error: 'Inspection ID is required' };
+    }
+    if (!photos || photos.length === 0) {
+      return { success: false, error: 'No photos provided' };
+    }
+
+    console.log('[Import] Starting photo import:', {
+      inspectionId,
+      photoCount: photos.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Sort by timestamp (chronological order, nulls last)
+    const sortedPhotos = [...photos].sort((a, b) => {
+      if (!a.timestamp) return 1;
+      if (!b.timestamp) return -1;
+      return a.timestamp.getTime() - b.timestamp.getTime();
+    });
+
+    // Batch insert items
+    const supabase = await createClient();
+    const itemsToInsert = sortedPhotos.map((photo, index) => ({
+      inspection_id: inspectionId,
+      index_position: index,
+      timestamp: photo.timestamp ? photo.timestamp.toISOString() : null,
+      file_path: photo.filePath,
+      caption: null,
+      exif_data: {
+        device: photo.device,
+        gps: photo.gps,
+        fileName: photo.fileName,
+        fileSize: photo.fileSize,
+      },
+    }));
+
+    const { data, error } = await supabase
+      .from('photo_items')
+      .insert(itemsToInsert)
+      .select();
+
+    if (error) {
+      console.error('[Import] Failed to insert photo items:', {
+        inspectionId,
+        count: itemsToInsert.length,
+        error: error.message,
+        code: error.code,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Handle UNIQUE constraint violation (duplicate import)
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error:
+            'This inspection already has photo items. Delete existing items before re-importing.',
+        };
+      }
+
+      // Handle foreign key violation (inspection doesn't exist)
+      if (error.code === '23503') {
+        return {
+          success: false,
+          error: 'Inspection not found',
+        };
+      }
+
+      return { success: false, error: 'Failed to import photos' };
+    }
+
+    console.log('[Import] Successfully imported photos:', {
+      inspectionId,
+      count: data.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true, data: { count: data.length } };
+  } catch (error) {
+    console.error('[Import] Unexpected error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
+    return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+]]>
+      </full-content>
+      <modification-plan>
+        <change location="itemsToInsert mapping">
+          Add elapsed_time field: elapsed_time: segment.elapsed_time || null
+        </change>
+        <change location="success logging">
+          Enhance logging to include elapsed_time range (first and last)
+        </change>
+        <rationale>Store elapsed_time from parsed segment, use || null for backward compatibility</rationale>
+        <important>timestamp TIMESTAMPTZ field remains NULL (no changes to this field)</important>
+      </modification-plan>
+    </artifact>
+
+    <!-- DATABASE TYPES -->
+    <artifact name="database.ts"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/src/types/database.ts"
+              type="typescript-types"
+              status="to-modify">
+      <description>
+        Database type definitions. Story 1.3.3 will add elapsed_time: string | null to TranscriptItem interface.
+      </description>
+      <full-content>
+<![CDATA[
+/**
+ * Database Type Definitions for TimelineMerge
+ *
+ * These types mirror the database schema and should be kept in sync with
+ * the SQL schema defined in supabase/migrations/001_initial_schema.sql
+ */
+
+// =============================================================================
+// Core Entity Types
+// =============================================================================
+
+/**
+ * Project entity - Top-level container for inspections
+ */
+export interface Project {
+  id: string;
+  name: string;
+  client_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Inspection entity - Inspection event within a project
+ */
+export interface Inspection {
+  id: string;
+  project_id: string;
+  name: string;
+  inspection_date: string | null;
+  site_type_schema: 'commercial_v1' | 'commercial_v2' | 'residential' | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Transcript item - Transcript entry with speaker and timestamp
+ */
+export interface TranscriptItem {
+  id: string;
+  inspection_id: string;
+  index_position: number;
+  timestamp: string | null;
+  speaker_label: string | null;
+  text_content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Photo item - Photo entry with file path and EXIF data
+ */
+export interface PhotoItem {
+  id: string;
+  inspection_id: string;
+  index_position: number;
+  timestamp: string | null;
+  file_path: string;
+  caption: string | null;
+  exif_data: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Note item - User note (header, footer, or free-floating)
+ */
+export interface NoteItem {
+  id: string;
+  inspection_id: string;
+  index_position: number;
+  note_type: 'header' | 'footer' | 'free_floating';
+  associated_item_id: string | null;
+  associated_item_type: 'transcript' | 'photo' | null;
+  text_content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Location attributes - Polymorphic location data for any item type
+ */
+export interface LocationAttributes {
+  id: string;
+  item_id: string;
+  item_type: 'transcript' | 'photo' | 'note';
+  building: string | null;
+  floor: string | null;
+  unit: string | null;
+  room: string | null;
+  monitor_point: string | null;
+  extraction_confidence: number | null;
+  is_inherited: boolean;
+  manually_edited: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Timeline item - Unified view result from timeline_items view
+ * Combines all item types into a single interface for timeline display
+ */
+export interface TimelineItem {
+  id: string;
+  inspection_id: string;
+  index_position: number;
+  timestamp: string | null;
+  item_type: 'transcript' | 'photo' | 'note';
+  content: string | null;
+  speaker_label: string | null;
+  file_path: string | null;
+  caption: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// Server Action Result Types
+// =============================================================================
+
+/**
+ * Standard result type for all Server Actions
+ * Never throw errors to client - always return ActionResult
+ */
+export type ActionResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+// =============================================================================
+// Input Types for Server Actions
+// =============================================================================
+
+/**
+ * Input data for creating a new project
+ */
+export interface CreateProjectInput {
+  name: string;
+  clientName?: string;
+}
+
+/**
+ * Input data for creating a new inspection
+ */
+export interface CreateInspectionInput {
+  projectId: string;
+  name: string;
+  inspectionDate?: string;
+  siteTypeSchema?: 'commercial_v1' | 'commercial_v2' | 'residential';
+}
+
+/**
+ * Input data for creating a transcript item
+ */
+export interface CreateTranscriptItemInput {
+  inspectionId: string;
+  indexPosition: number;
+  timestamp?: string;
+  speakerLabel?: string;
+  textContent: string;
+}
+
+/**
+ * Input data for creating a photo item
+ */
+export interface CreatePhotoItemInput {
+  inspectionId: string;
+  indexPosition: number;
+  timestamp?: string;
+  filePath: string;
+  caption?: string;
+  exifData?: Record<string, unknown>;
+}
+
+/**
+ * Input data for creating a note item
+ */
+export interface CreateNoteItemInput {
+  inspectionId: string;
+  indexPosition: number;
+  noteType: 'header' | 'footer' | 'free_floating';
+  associatedItemId?: string;
+  associatedItemType?: 'transcript' | 'photo';
+  textContent: string;
+}
+
+/**
+ * Input data for creating location attributes
+ */
+export interface CreateLocationAttributesInput {
+  itemId: string;
+  itemType: 'transcript' | 'photo' | 'note';
+  building?: string;
+  floor?: string;
+  unit?: string;
+  room?: string;
+  monitorPoint?: string;
+  extractionConfidence?: number;
+  isInherited?: boolean;
+  manuallyEdited?: boolean;
+}
+]]>
+      </full-content>
+      <modification-plan>
+        <change location="TranscriptItem interface">
+          Add elapsed_time: string | null field after timestamp field
+        </change>
+        <change location="TimelineItem interface">
+          Add elapsed_time: string | null field after timestamp field
+        </change>
+        <rationale>Nullable field (not optional) to match database reality - field always exists but can be NULL</rationale>
+        <important>Use | null syntax, NOT optional field with ? - this matches database structure</important>
+      </modification-plan>
+    </artifact>
+
+    <!-- TRANSCRIPT IMPORTER COMPONENT -->
+    <artifact name="TranscriptImporter.tsx"
+              path="C:/SourceCode/TimelineMerge/timelinemerge/src/components/import/TranscriptImporter.tsx"
+              type="react-component"
+              status="no-changes-needed">
+      <description>
+        TranscriptImporter component. NO CHANGES needed for Story 1.3.3 - component already uses readAndParseTranscriptFile() wrapper.
+      </description>
+      <summary>
+        Component already properly structured to handle elapsed_time field:
+        - Uses readAndParseTranscriptFile() wrapper for all parsing (client-side)
+        - Passes ParsedTranscript to importTranscript() Server Action
+        - No modifications needed as parser and Server Action handle elapsed_time
+      </summary>
+      <key-points>
+        <point>File validation and size checks already in place (100 MB limit, 10 MB warning)</point>
+        <point>readAndParseTranscriptFile() already returns segments with elapsed_time</point>
+        <point>importTranscript() already accepts ParsedTranscript structure</point>
+      </key-points>
+    </artifact>
+
+  </code-artifacts>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: RELATED STORIES -->
+  <!-- ============================================================ -->
+
+  <related-stories>
+
+    <!-- PARENT STORY -->
+    <story id="1.3"
+           title="Otter.ai Transcript Import"
+           relationship="parent"
+           status="done"
+           path="C:/SourceCode/TimelineMerge/docs/stories/story-1.3.md">
+      <description>
+        Original transcript import story that established the import infrastructure. Story 1.3.3 extends this functionality to preserve elapsed time data.
+      </description>
+      <key-learnings>
+        <learning>Import parser module at src/lib/import/transcript-parser.ts</learning>
+        <learning>Import Server Action at src/actions/import.ts with importTranscript()</learning>
+        <learning>Parser uses normalizeTimestamp() to convert timestamps to HH:MM:SS format</learning>
+        <learning>Batch insert pattern for performance (single query for all segments)</learning>
+        <learning>Structured logging with [Import] prefix</learning>
+        <learning>Technical debt: Timestamps stored as NULL (ordering by index_position)</learning>
+      </key-learnings>
+    </story>
+
+    <!-- PATTERN REFERENCE STORY 1 -->
+    <story id="1.3.1"
+           title="Word Document Parser"
+           relationship="pattern-reference"
+           status="done"
+           path="C:/SourceCode/TimelineMerge/docs/stories/1-3-1-word-document-parser.md">
+      <description>
+        Story that established the client-side wrapper function pattern for format detection and parsing. Story 1.3.3 follows similar extension patterns.
+      </description>
+      <key-patterns>
+        <pattern>Client-side wrapper function: readAndParseTranscriptFile()</pattern>
+        <pattern>Format detection based on file extension</pattern>
+        <pattern>Library integration: use extraction library, then call parseOtterTranscript()</pattern>
+        <pattern>parseOtterTranscript() signature unchanged (string-only)</pattern>
+        <pattern>Timestamp fallback for documents without timestamps</pattern>
+        <pattern>Production dependency (mammoth.js ~100 KB)</pattern>
+      </key-patterns>
+    </story>
+
+    <!-- PATTERN REFERENCE STORY 2 -->
+    <story id="1.3.2"
+           title="PDF Document Parser"
+           relationship="pattern-reference"
+           status="done"
+           path="C:/SourceCode/TimelineMerge/docs/stories/1-3-2-pdf-document-parser.md">
+      <description>
+        Story that extended client-side wrapper function for PDF support. Story 1.3.3 follows similar extension patterns for database and type system updates.
+      </description>
+      <key-patterns>
+        <pattern>Extension of existing readAndParseTranscriptFile() wrapper</pattern>
+        <pattern>Add new format to TranscriptFormat union ('pdf')</pattern>
+        <pattern>Update file validation to include new extension</pattern>
+        <pattern>Backward compatibility maintained for existing formats</pattern>
+        <pattern>Production dependency (pdfjs-dist ~500 KB)</pattern>
+      </key-patterns>
+    </story>
+
+  </related-stories>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: IMPLEMENTATION GUIDANCE -->
+  <!-- ============================================================ -->
+
+  <implementation-guidance>
+
+    <critical-requirements>
+      <requirement priority="critical">
+        Create database migration with timestamp-based naming: 20251101120000_add_elapsed_time_field.sql
+      </requirement>
+      <requirement priority="critical">
+        Add elapsed_time TEXT field to transcript_items table (nullable for backward compatibility)
+      </requirement>
+      <requirement priority="critical">
+        Update timeline_items VIEW to include elapsed_time field from transcript_items
+      </requirement>
+      <requirement priority="critical">
+        Add CHECK constraint for elapsed_time format validation: CHECK (elapsed_time IS NULL OR elapsed_time ~ '^\d{2}:\d{2}:\d{2}$')
+      </requirement>
+      <requirement priority="critical">
+        Update TranscriptSegment type: elapsed_time?: string (OPTIONAL field)
+      </requirement>
+      <requirement priority="critical">
+        Update TranscriptItem type: elapsed_time: string | null (NULLABLE, not optional)
+      </requirement>
+      <requirement priority="critical">
+        Update parser to populate elapsed_time field in both parseOtterTxtFormat() and parseOtterJsonFormat()
+      </requirement>
+      <requirement priority="critical">
+        Update importTranscript() Server Action to include elapsed_time in batch insert
+      </requirement>
+      <requirement priority="critical">
+        DO NOT modify normalizeTimestamp() function signature or logic
+      </requirement>
+      <requirement priority="critical">
+        DO NOT populate timestamp TIMESTAMPTZ field (remains NULL)
+      </requirement>
+    </critical-requirements>
+
+    <architectural-patterns>
+      <pattern name="Database Extension Pattern">
+        <description>Add new field to existing table via migration, maintain backward compatibility</description>
+        <steps>
+          <step>Create new migration file with timestamp-based naming</step>
+          <step>Add nullable field to allow existing records to have NULL</step>
+          <step>Add CHECK constraint for format validation at database level</step>
+          <step>Update relevant views to include new field</step>
+          <step>Test migration on existing data (verify no breaking changes)</step>
+        </steps>
+      </pattern>
+
+      <pattern name="Type System Update Pattern">
+        <description>Update TypeScript types to match database schema changes</description>
+        <steps>
+          <step>Update parser types (TranscriptSegment) with OPTIONAL field (elapsed_time?: string)</step>
+          <step>Update database types (TranscriptItem) with NULLABLE field (elapsed_time: string | null)</step>
+          <step>Maintain distinction: parser optional vs database nullable</step>
+          <step>Verify TypeScript compilation with npx tsc --noEmit</step>
+        </steps>
+      </pattern>
+
+      <pattern name="Parser Extension Pattern">
+        <description>Update parser to populate new field without changing function signatures</description>
+        <steps>
+          <step>Assign SAME normalized timestamp to both timestamp and elapsed_time fields</step>
+          <step>Maintain backward compatibility by keeping timestamp field (in-memory only)</step>
+          <step>Add elapsed_time field for database persistence</step>
+          <step>DO NOT change normalizeTimestamp() function</step>
+        </steps>
+      </pattern>
+    </architectural-patterns>
+
+    <elapsed-time-vs-timestamp-clarification>
+      <purpose-explanation>
+        IMPORTANT: Understanding the purpose of each field prevents confusion about storing the SAME value in multiple places.
+
+        **elapsed_time Field (NEW in Story 1.3.3):**
+        - Purpose: Database persistence for recording offset timestamps
+        - Storage: transcript_items.elapsed_time TEXT field
+        - Format: HH:MM:SS string (e.g., "00:03:45" = 3 minutes 45 seconds into recording)
+        - Use Case: Relative time offset for future audio sync, display in UI
+        - Persistence: Stored in database for long-term reference
+
+        **timestamp Field in TranscriptSegment (Backward Compatibility):**
+        - Purpose: Temporary value during parsing for backward compatibility
+        - Storage: In-memory only during parsing (TranscriptSegment.timestamp)
+        - Format: Same HH:MM:SS string as elapsed_time
+        - Use Case: Maintained for backward compatibility with existing parser code
+        - Persistence: NOT stored in database (used only during parsing)
+
+        **timestamp TIMESTAMPTZ Field in Database (Future Use):**
+        - Purpose: Reserved for future absolute timestamps
+        - Storage: transcript_items.timestamp TIMESTAMPTZ field
+        - Format: ISO 8601 timestamp (e.g., "2025-11-01T14:30:45Z")
+        - Use Case: Absolute time for chronological ordering across inspections
+        - Calculation: inspection_start_time + elapsed_time = absolute timestamp
+        - Current State: Always NULL (Story 1.3.3 does NOT populate this)
+
+        **Why Both elapsed_time and timestamp in TranscriptSegment?**
+
+        During parsing, we assign the SAME value to both fields:
+        ```typescript
+        segments.push({
+          speaker: currentSpeaker,
+          timestamp: currentTimestamp,      // For backward compatibility (in-memory only)
+          elapsed_time: currentTimestamp,   // For database persistence (stored)
+          text: currentText.join(' ').trim(),
+        });
+        ```
+
+        This approach:
+        1. Maintains backward compatibility: Existing code expecting segment.timestamp continues working
+        2. Adds database persistence: New segment.elapsed_time field gets stored in database
+        3. Minimal code changes: Parser assigns same value to both fields during parsing
+        4. Clear separation: timestamp is in-memory only, elapsed_time is for persistence
+      </purpose-explanation>
+    </elapsed-time-vs-timestamp-clarification>
+
+    <testing-requirements>
+      <requirement>Manual testing required per architecture.md</requirement>
+      <scenario>Database migration on clean database (verify elapsed_time field added)</scenario>
+      <scenario>Database migration on database with existing transcript_items (verify backward compatibility)</scenario>
+      <scenario>Import .txt file with timestamps (verify elapsed_time populated)</scenario>
+      <scenario>Import .json file with timestamps (verify elapsed_time populated)</scenario>
+      <scenario>Import .docx file with timestamps (verify elapsed_time populated)</scenario>
+      <scenario>Import .pdf file with timestamps (verify elapsed_time populated)</scenario>
+      <scenario>Check database records (verify elapsed_time matches expected format "00:03:45")</scenario>
+      <scenario>Test CHECK constraint with invalid format (verify rejection)</scenario>
+      <scenario>Test CHECK constraint with valid format (verify acceptance)</scenario>
+      <scenario>Query transcript_items with NULL elapsed_time (verify backward compatibility)</scenario>
+      <scenario>Verify TypeScript compilation: npx tsc --noEmit</scenario>
+    </testing-requirements>
+
+    <dependencies-and-constraints>
+      <dependency>Story 1.3 (Otter.ai Transcript Import) - completed</dependency>
+      <dependency>Story 1.3.1 (Word Document Parser) - completed</dependency>
+      <dependency>Story 1.3.2 (PDF Document Parser) - completed</dependency>
+      <constraint>MUST use timestamp-based migration naming (20251101120000_add_elapsed_time_field.sql)</constraint>
+      <constraint>MUST NOT modify parseOtterTranscript() function signature</constraint>
+      <constraint>MUST NOT modify normalizeTimestamp() function signature or logic</constraint>
+      <constraint>MUST NOT populate timestamp TIMESTAMPTZ field (remains NULL)</constraint>
+      <constraint>MUST maintain backward compatibility with existing NULL elapsed_time values</constraint>
+      <constraint>MUST use nullable field (elapsed_time: string | null) not optional (elapsed_time?: string) in TranscriptItem</constraint>
+    </dependencies-and-constraints>
+
+    <implementation-sequence>
+      <step order="1">
+        Create database migration file: 20251101120000_add_elapsed_time_field.sql
+        - Add elapsed_time TEXT field to transcript_items table
+        - Add CHECK constraint for format validation
+        - Update timeline_items view to include elapsed_time field
+      </step>
+      <step order="2">
+        Update TypeScript type definitions
+        - Add elapsed_time?: string to TranscriptSegment interface (optional)
+        - Add elapsed_time: string | null to TranscriptItem interface (nullable, not optional)
+        - Add elapsed_time: string | null to TimelineItem interface (nullable, not optional)
+      </step>
+      <step order="3">
+        Update transcript-parser.ts
+        - In parseOtterTxtFormat(): assign elapsed_time: currentTimestamp
+        - In parseOtterJsonFormat(): assign elapsed_time: timestamp
+        - DO NOT modify normalizeTimestamp() function
+      </step>
+      <step order="4">
+        Update import.ts Server Action
+        - Add elapsed_time field to itemsToInsert mapping: elapsed_time: segment.elapsed_time || null
+        - Update logging to include elapsed_time range information
+      </step>
+      <step order="5">
+        Verify TypeScript compilation: npx tsc --noEmit
+      </step>
+      <step order="6">
+        Test database migration (manual testing as per architecture.md)
+      </step>
+      <step order="7">
+        Test import workflow with all formats (.txt, .json, .docx, .pdf)
+      </step>
+    </implementation-sequence>
+
+  </implementation-guidance>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: ACCEPTANCE CRITERIA MAPPING -->
+  <!-- ============================================================ -->
+
+  <acceptance-criteria>
+    <criterion id="AC1" status="pending">
+      <description>Database migration adds elapsed_time TEXT field to transcript_items table (nullable for backward compatibility)</description>
+      <verification>
+        - Create migration file: 20251101120000_add_elapsed_time_field.sql
+        - Run migration: supabase migration up
+        - Verify field added: \d transcript_items shows elapsed_time TEXT field
+        - Verify nullable: existing records have NULL elapsed_time
+      </verification>
+    </criterion>
+
+    <criterion id="AC2" status="pending">
+      <description>Database migration adds elapsed_time field to timeline_items view</description>
+      <verification>
+        - Update timeline_items VIEW definition to include elapsed_time field
+        - Verify view includes field: SELECT * FROM timeline_items shows elapsed_time column
+        - Verify NULL for photos: photo items show NULL elapsed_time
+      </verification>
+    </criterion>
+
+    <criterion id="AC3" status="pending">
+      <description>Migration file uses timestamp-based naming convention (e.g., 20251101120000_add_elapsed_time_field.sql)</description>
+      <verification>
+        - Verify migration filename matches pattern: YYYYMMDDHHMMSS_add_elapsed_time_field.sql
+        - Verify migration runs without errors
+      </verification>
+    </criterion>
+
+    <criterion id="AC4" status="pending">
+      <description>TranscriptSegment type updated to include optional elapsed_time field (elapsed_time?: string)</description>
+      <verification>
+        - Check src/lib/import/types.ts shows elapsed_time?: string in TranscriptSegment interface
+        - Verify TypeScript compilation: npx tsc --noEmit
+      </verification>
+    </criterion>
+
+    <criterion id="AC5" status="pending">
+      <description>TranscriptItem type updated to include nullable elapsed_time field (elapsed_time: string | null)</description>
+      <verification>
+        - Check src/types/database.ts shows elapsed_time: string | null in TranscriptItem interface
+        - Verify TypeScript compilation: npx tsc --noEmit
+        - Verify NOT optional (no ? syntax)
+      </verification>
+    </criterion>
+
+    <criterion id="AC6" status="pending">
+      <description>Parser populates elapsed_time field with original timestamp string (e.g., "00:03:45")</description>
+      <verification>
+        - Import transcript file (.txt, .json, .docx, or .pdf)
+        - Check database: SELECT id, elapsed_time FROM transcript_items
+        - Verify elapsed_time matches HH:MM:SS format (e.g., "00:03:45")
+      </verification>
+    </criterion>
+
+    <criterion id="AC7" status="pending">
+      <description>importTranscript() Server Action stores elapsed_time value in database</description>
+      <verification>
+        - Import transcript via TranscriptImporter component
+        - Check database: SELECT id, elapsed_time FROM transcript_items
+        - Verify elapsed_time stored correctly
+      </verification>
+    </criterion>
+
+    <criterion id="AC8" status="pending">
+      <description>Existing transcript_items with NULL elapsed_time continue working (backward compatible)</description>
+      <verification>
+        - Query existing transcript_items: SELECT id, elapsed_time FROM transcript_items WHERE elapsed_time IS NULL
+        - Verify NULL values handled gracefully
+        - Verify timeline display works with mixed data (NULL and populated elapsed_time)
+      </verification>
+    </criterion>
+
+    <criterion id="AC9" status="pending">
+      <description>Timestamp normalization continues working as-is (no changes to normalizeTimestamp function)</description>
+      <verification>
+        - Verify normalizeTimestamp() function signature unchanged
+        - Verify normalizeTimestamp() logic unchanged
+        - Test import with various timestamp formats (HH:MM:SS, MM:SS, numeric seconds)
+      </verification>
+    </criterion>
+
+    <criterion id="AC10" status="pending">
+      <description>Index_position remains primary ordering mechanism (no changes to ordering logic)</description>
+      <verification>
+        - Verify ordering logic unchanged in importTranscript() Server Action
+        - Verify index_position still used for chronological ordering
+        - Verify elapsed_time does NOT affect ordering
+      </verification>
+    </criterion>
+
+    <criterion id="AC11" status="pending">
+      <description>TranscriptItem type prepared for future UI display (elapsed_time: string | null matches database reality)</description>
+      <verification>
+        - Check TranscriptItem interface includes elapsed_time: string | null
+        - Verify type matches database schema (nullable, not optional)
+        - Verify documentation comments explain field purpose
+      </verification>
+    </criterion>
+
+    <criterion id="AC12" status="pending">
+      <description>Migration runs successfully on existing database without breaking changes</description>
+      <verification>
+        - Run migration on database with existing transcript_items
+        - Verify no errors during migration
+        - Verify existing data unaffected (queries still work)
+        - Verify UNIQUE constraints intact
+      </verification>
+    </criterion>
+
+    <criterion id="AC13" status="pending">
+      <description>All existing transcript import formats (.txt, .json, .docx, .pdf) work with new field</description>
+      <verification>
+        - Import .txt file with timestamps
+        - Import .json file with timestamps
+        - Import .docx file with timestamps
+        - Import .pdf file with timestamps
+        - Verify all formats populate elapsed_time field correctly
+      </verification>
+    </criterion>
+
+    <criterion id="AC14" status="pending">
+      <description>Database timestamp TIMESTAMPTZ field remains NULL (reserved for future absolute timestamps)</description>
+      <verification>
+        - After import, check database: SELECT id, timestamp, elapsed_time FROM transcript_items
+        - Verify timestamp field is NULL for all records
+        - Verify elapsed_time field populated with HH:MM:SS values
+      </verification>
+    </criterion>
+
+    <criterion id="AC15" status="pending">
+      <description>All existing tests and functionality continue working after migration</description>
+      <verification>
+        - Run existing transcript imports
+        - Verify timeline display works
+        - Verify no breaking changes to existing functionality
+      </verification>
+    </criterion>
+
+    <criterion id="AC16" status="pending">
+      <description>Database includes CHECK constraint for elapsed_time format validation (HH:MM:SS)</description>
+      <verification>
+        - Attempt to insert invalid format: INSERT INTO transcript_items (..., elapsed_time) VALUES (..., 'invalid')
+        - Verify rejection with constraint violation error
+        - Attempt to insert valid format: INSERT INTO transcript_items (..., elapsed_time) VALUES (..., '00:03:45')
+        - Verify acceptance
+        - Check constraint: SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'transcript_items'::regclass
+      </verification>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: FILE MODIFICATION CHECKLIST -->
+  <!-- ============================================================ -->
+
+  <file-modifications>
+
+    <new-file priority="high">
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/supabase/migrations/20251101120000_add_elapsed_time_field.sql</path>
+      <description>Database migration to add elapsed_time TEXT field to transcript_items and update timeline_items view</description>
+      <template>
+<![CDATA[
+-- Migration: Add elapsed_time field to transcript_items
+-- Story: 1.3.3 Elapsed Time / Absolute Timestamp Handling
+-- Description: Preserves original elapsed time from transcripts (e.g., "00:03:45")
+-- File: 20251101120000_add_elapsed_time_field.sql
+
+-- Add elapsed_time field (nullable for backward compatibility)
+ALTER TABLE transcript_items
+  ADD COLUMN elapsed_time TEXT;
+
+-- Add CHECK constraint for format validation
+ALTER TABLE transcript_items
+  ADD CONSTRAINT check_elapsed_time_format
+    CHECK (elapsed_time IS NULL OR elapsed_time ~ '^\d{2}:\d{2}:\d{2}$');
+
+-- Add comment documenting field purpose
+COMMENT ON COLUMN transcript_items.elapsed_time IS
+  'Elapsed time from recording start (e.g., ''00:03:45''). Represents relative time offset, not absolute timestamp.';
+
+-- Note: No index on elapsed_time - not used for querying or ordering
+-- Ordering handled by index_position field
+
+-- Update timeline_items view to include elapsed_time
+CREATE OR REPLACE VIEW timeline_items AS
+  SELECT
+    id,
+    inspection_id,
+    item_type,
+    index_position,
+    timestamp,
+    elapsed_time,  -- Add elapsed_time field
+    speaker_label,
+    text_content,
+    metadata,
+    created_at,
+    updated_at
+  FROM transcript_items
+  UNION ALL
+  SELECT
+    id,
+    inspection_id,
+    item_type,
+    index_position,
+    timestamp,
+    NULL as elapsed_time,  -- Photos don't have elapsed_time
+    NULL as speaker_label,
+    caption as text_content,
+    metadata,
+    created_at,
+    updated_at
+  FROM photo_items
+  ORDER BY index_position;
+]]>
+      </template>
+    </new-file>
+
+    <modify-file priority="high">
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/src/lib/import/types.ts</path>
+      <description>Add elapsed_time?: string to TranscriptSegment interface</description>
+      <changes>
+        <change location="TranscriptSegment interface">
+          Add field: elapsed_time?: string (optional - parser may not have timestamp data)
+        </change>
+        <change location="interface documentation">
+          Add comment explaining elapsed_time field purpose
+        </change>
+      </changes>
+    </modify-file>
+
+    <modify-file priority="high">
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/src/lib/import/transcript-parser.ts</path>
+      <description>Update parser to populate elapsed_time field</description>
+      <changes>
+        <change location="parseOtterTxtFormat() - segment creation">
+          Add field: elapsed_time: currentTimestamp (same value as timestamp)
+        </change>
+        <change location="parseOtterJsonFormat() - segment mapping">
+          Add field: elapsed_time: timestamp (same value as timestamp)
+        </change>
+        <change location="normalizeTimestamp()">
+          DO NOT MODIFY - signature and logic remain unchanged
+        </change>
+      </changes>
+    </modify-file>
+
+    <modify-file priority="high">
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/src/actions/import.ts</path>
+      <description>Update importTranscript() to store elapsed_time in database</description>
+      <changes>
+        <change location="itemsToInsert mapping">
+          Add field: elapsed_time: segment.elapsed_time || null
+        </change>
+        <change location="success logging">
+          Add elapsed_time range: firstElapsed and lastElapsed for logging
+        </change>
+        <change location="timestamp field">
+          DO NOT MODIFY - remains NULL
+        </change>
+      </changes>
+    </modify-file>
+
+    <modify-file priority="high">
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/src/types/database.ts</path>
+      <description>Add elapsed_time: string | null to TranscriptItem and TimelineItem interfaces</description>
+      <changes>
+        <change location="TranscriptItem interface">
+          Add field: elapsed_time: string | null (nullable, NOT optional)
+        </change>
+        <change location="TimelineItem interface">
+          Add field: elapsed_time: string | null (nullable, NOT optional)
+        </change>
+        <change location="interface documentation">
+          Add comment explaining elapsed_time field purpose
+        </change>
+      </changes>
+    </modify-file>
+
+    <no-changes-file>
+      <path>C:/SourceCode/TimelineMerge/timelinemerge/src/components/import/TranscriptImporter.tsx</path>
+      <reason>Component already uses readAndParseTranscriptFile() wrapper which returns segments with elapsed_time</reason>
+    </no-changes-file>
+
+  </file-modifications>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 7: RISK ASSESSMENT -->
+  <!-- ============================================================ -->
+
+  <risk-assessment>
+
+    <risk level="low">
+      <description>Database migration on existing production data</description>
+      <mitigation>
+        - Field is nullable (NULL for existing records)
+        - No default value (prevents unintended data changes)
+        - Migration tested on local database first
+        - Backward compatibility verified
+      </mitigation>
+    </risk>
+
+    <risk level="low">
+      <description>Type system changes may cause compilation errors</description>
+      <mitigation>
+        - Verify TypeScript compilation with npx tsc --noEmit
+        - Use nullable (| null) not optional (?) for database types
+        - Use optional (?) for parser types where appropriate
+      </mitigation>
+    </risk>
+
+    <risk level="low">
+      <description>Breaking changes to existing import functionality</description>
+      <mitigation>
+        - DO NOT modify normalizeTimestamp() function
+        - DO NOT modify parseOtterTranscript() signature
+        - Maintain backward compatibility with existing formats
+        - Test all formats (.txt, .json, .docx, .pdf) after changes
+      </mitigation>
+    </risk>
+
+    <risk level="medium">
+      <description>CHECK constraint may reject valid elapsed_time values</description>
+      <mitigation>
+        - Constraint allows NULL values (for backward compatibility)
+        - Regex pattern matches HH:MM:SS format exactly (^\d{2}:\d{2}:\d{2}$)
+        - Test constraint with various formats during migration testing
+        - Verify normalizeTimestamp() always returns HH:MM:SS format
+      </mitigation>
+    </risk>
+
+  </risk-assessment>
+
+</story-context>

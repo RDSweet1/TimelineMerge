@@ -64,6 +64,7 @@ export async function importTranscript(
       // For MVP, store NULL and rely on index_position for ordering
       // Future enhancement: add elapsed_time TEXT field to store HH:MM:SS format
       timestamp: null,
+      elapsed_time: segment.elapsed_time || null,
       speaker_label: segment.speaker,
       text_content: segment.text,
     }));
@@ -107,11 +108,16 @@ export async function importTranscript(
       };
     }
 
+    // Get elapsed_time range for logging
+    const firstElapsed = sortedSegments[0]?.elapsed_time;
+    const lastElapsed = sortedSegments[sortedSegments.length - 1]?.elapsed_time;
+
     console.log('[Import] Successfully imported transcript:', {
       inspectionId,
       fileName,
       count: data.length,
       timestamp: new Date().toISOString(),
+      ...(firstElapsed && lastElapsed ? { elapsedTimeRange: `${firstElapsed} to ${lastElapsed}` } : {}),
     });
 
     return { success: true, data: { count: data.length } };

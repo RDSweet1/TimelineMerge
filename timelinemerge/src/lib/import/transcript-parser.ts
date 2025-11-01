@@ -195,6 +195,7 @@ export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
         segments.push({
           speaker: currentSpeaker,
           timestamp: currentTimestamp,
+          elapsed_time: currentTimestamp,
           text: currentText.join(' ').trim(),
         });
       }
@@ -216,6 +217,7 @@ export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
         segments.push({
           speaker: currentSpeaker,
           timestamp: currentTimestamp,
+          elapsed_time: currentTimestamp,
           text: currentText.join(' ').trim(),
         });
       }
@@ -237,6 +239,7 @@ export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
     segments.push({
       speaker: currentSpeaker,
       timestamp: currentTimestamp,
+      elapsed_time: currentTimestamp,
       text: currentText.join(' ').trim(),
     });
   }
@@ -310,6 +313,7 @@ export function parseOtterJsonFormat(content: string): TranscriptSegment[] {
         return {
           speaker,
           timestamp,
+          elapsed_time: timestamp,
           text,
         };
       }
