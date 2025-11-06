@@ -31,16 +31,26 @@ export default function ImportPage() {
 
       {/* Import Tabs */}
       <Tabs defaultValue="transcript" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="transcript">Transcript Import</TabsTrigger>
-          <TabsTrigger value="photos">Photo Import</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 mb-10">
+          <TabsTrigger
+            value="transcript"
+            className="data-[state=active]:bg-background data-[state=active]:font-semibold data-[state=active]:shadow-sm"
+          >
+            Transcript Import
+          </TabsTrigger>
+          <TabsTrigger
+            value="photos"
+            className="data-[state=active]:bg-background data-[state=active]:font-semibold data-[state=active]:shadow-sm"
+          >
+            Photo Import
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="transcript" className="mt-6">
+
+        <TabsContent value="transcript" className="mt-0 space-y-6">
           <TranscriptImporter />
         </TabsContent>
-        
-        <TabsContent value="photos" className="mt-6">
+
+        <TabsContent value="photos" className="mt-0 space-y-6">
           <PhotoImporter />
         </TabsContent>
       </Tabs>

@@ -169,15 +169,17 @@ export function InspectionSelector({
       <CardHeader>
         <CardTitle>Select Inspection</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {/* Project Selection */}
         <div className="space-y-2">
-          <Label htmlFor="project-select">Project</Label>
+          <Label htmlFor="project-select">
+            Project <span className="text-destructive">*</span>
+          </Label>
           <Select
             value={selectedProjectId}
             onValueChange={setSelectedProjectId}
           >
-            <SelectTrigger id="project-select">
+            <SelectTrigger id="project-select" aria-label="Select project">
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent>
@@ -194,7 +196,9 @@ export function InspectionSelector({
         {/* Inspection Selection */}
         {selectedProjectId && (
           <div className="space-y-2">
-            <Label htmlFor="inspection-select">Inspection</Label>
+            <Label htmlFor="inspection-select">
+              Inspection <span className="text-destructive">*</span>
+            </Label>
             {isLoadingInspections ? (
               <p className="text-sm text-muted-foreground">
                 Loading inspections...
@@ -204,7 +208,7 @@ export function InspectionSelector({
                 value={selectedInspectionId}
                 onValueChange={handleInspectionChange}
               >
-                <SelectTrigger id="inspection-select">
+                <SelectTrigger id="inspection-select" aria-label="Select inspection">
                   <SelectValue placeholder="Select or create an inspection" />
                 </SelectTrigger>
                 <SelectContent>
