@@ -116,6 +116,30 @@ So that spoken observations are captured as items in my inspection.
 
 ---
 
+**Story 1.3.4: Import UI/UX Enhancement**
+
+As a user importing inspection data,
+I want a clear, intuitive, and visually polished import interface,
+So that I can efficiently import transcripts and photos without confusion or visual obstruction.
+
+**Acceptance Criteria:**
+1. All form elements have consistent styling with adequate spacing (no overlapping dropdowns)
+2. Clear visual hierarchy guides user through the import flow
+3. Tab interface has distinct active/inactive states for Transcript Import and Photo Import
+4. Dropdowns expand without overlapping other elements
+5. File selection shows clear feedback (filename, file size, format)
+6. Import button state clearly communicates availability and reasons for disabled state
+7. Required fields are clearly indicated with visual markers
+8. Validation errors are displayed inline with helpful messaging
+9. Success state is clearly communicated after import completion
+10. Form layout is responsive and works on mobile, tablet, and desktop
+11. All form fields have proper labels and keyboard navigation support
+12. Focus states are visible and color is not the only indicator of state
+
+**Prerequisites:** Story 1.3 (Transcript Import), Story 1.4 (Photo Import)
+
+---
+
 **Story 1.4: Photo Metadata Import**
 
 As an inspector,

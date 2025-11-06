@@ -16,6 +16,30 @@ import {
 } from './types';
 
 /**
+ * Strip HTML tags from text content
+ *
+ * Handles HTML output from mammoth.extractRawText() which sometimes
+ * returns HTML instead of plain text for certain Word documents.
+ *
+ * @param html - HTML content to strip
+ * @returns Plain text without HTML tags
+ */
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<\/p>/gi, '\n') // Convert closing paragraph tags to newlines
+    .replace(/<br\s*\/?>/gi, '\n') // Convert br tags to newlines
+    .replace(/<\/div>/gi, '\n') // Convert closing div tags to newlines
+    .replace(/<\/strong>\s*/gi, '  ') // Convert closing strong tags with trailing spaces to double space
+    .replace(/<[^>]*>/g, '') // Remove all remaining HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace non-breaking spaces
+    .replace(/&amp;/g, '&') // Replace ampersands
+    .replace(/&lt;/g, '<') // Replace less than
+    .replace(/&gt;/g, '>') // Replace greater than
+    .replace(/&quot;/g, '"') // Replace quotes
+    .trim();
+}
+
+/**
  * Read and parse transcript file (client-side wrapper)
  *
  * This wrapper function handles all file format detection and reading client-side.
@@ -38,44 +62,13 @@ export async function readAndParseTranscriptFile(
       .toLowerCase();
 
     if (fileExtension === '.pdf') {
-      // Extract text from PDF document using pdfjs-dist
-      // Dynamic import to avoid SSR issues
+      // Extract text from PDF document using server-side parser
       try {
-        const pdfjsLib = await import('pdfjs-dist');
-
-        // Configure worker path (only in browser environment)
-        if (typeof window !== 'undefined') {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-        }
-
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        const pdf = await loadingTask.promise;
 
-        let fullText = '';
-        // Extract text from all pages
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item) => {
-              // PDF text items have a 'str' property containing the text
-              if (typeof item === 'object' && item !== null && 'str' in item) {
-                return (item as { str: string }).str;
-              }
-              return '';
-            })
-            .join(' ');
-          fullText += pageText + '\n';
-
-          // Clean up page resources
-          page.cleanup();
-        }
-
-        fileContent = fullText;
-
-        // Clean up PDF document
-        await pdf.cleanup();
+        // Import server action dynamically to avoid client-side issues
+        const { parsePDF } = await import('@/actions/parse-pdf');
+        fileContent = await parsePDF(arrayBuffer);
       } catch (pdfError) {
         console.error('[Parser] PDF extraction failed:', pdfError);
         throw new Error(
@@ -173,13 +166,19 @@ export function parseOtterTranscript(
  * This is a response from the second speaker.
  * ```
  *
+ * Also handles HTML-formatted content from Word documents that may contain
+ * patterns like: <p><strong>Speaker Name  </strong>HH:MM:SS</p>
+ *
  * @param content - File content as string
  * @returns Array of transcript segments
  * @throws Error if parsing fails
  */
 export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
   const segments: TranscriptSegment[] = [];
-  const lines = content.split('\n');
+
+  // Strip HTML tags if present (from Word documents)
+  const cleanContent = stripHtmlTags(content);
+  const lines = cleanContent.split('\n');
 
   let currentSpeaker: string | null = null;
   let currentTimestamp: string | null = null;
@@ -188,9 +187,9 @@ export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Skip empty lines (they separate segments)
+    // Skip empty lines (they separate segments ONLY if we have accumulated text)
     if (line === '') {
-      // Save previous segment if exists
+      // Save previous segment if exists AND has text
       if (currentSpeaker && currentTimestamp && currentText.length > 0) {
         segments.push({
           speaker: currentSpeaker,
@@ -198,11 +197,12 @@ export function parseOtterTxtFormat(content: string): TranscriptSegment[] {
           elapsed_time: currentTimestamp,
           text: currentText.join(' ').trim(),
         });
+        // Reset for next segment
+        currentSpeaker = null;
+        currentTimestamp = null;
+        currentText = [];
       }
-      // Reset for next segment
-      currentSpeaker = null;
-      currentTimestamp = null;
-      currentText = [];
+      // If no text accumulated yet, just skip the empty line (don't reset)
       continue;
     }
 
